@@ -1,10 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
-import crypto from 'crypto';
 
 const supabase = createClient(
   process.env.VITE_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!
 );
+
+async function generateHmacSignature(secret: string, body: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
+  return Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 export const config = {
   runtime: 'edge',
@@ -44,10 +58,7 @@ export default async function handler(request: Request) {
     };
 
     const body = JSON.stringify(payload);
-    const signature = crypto
-      .createHmac('sha256', webhook.secret)
-      .update(body)
-      .digest('hex');
+    const signature = await generateHmacSignature(webhook.secret, body);
 
     // Send test webhook
     const response = await fetch(webhook.url, {
