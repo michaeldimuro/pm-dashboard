@@ -1,9 +1,11 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, Flag, MessageSquare, Paperclip } from 'lucide-react';
-import { format } from 'date-fns';
+import { Calendar, Flag, Clock, MessageSquare } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
+import { useBusiness } from '@/contexts/BusinessContext';
 import type { Task } from '@/types';
+import { ASSIGNEES } from '@/types';
 
 interface TaskCardProps {
   task: Task;
@@ -11,14 +13,16 @@ interface TaskCardProps {
   isDragging?: boolean;
 }
 
-const priorityColors = {
-  low: 'bg-gray-100 text-gray-600',
-  medium: 'bg-blue-100 text-blue-600',
-  high: 'bg-orange-100 text-orange-600',
-  urgent: 'bg-red-100 text-red-600',
+const priorityStyles = {
+  low: 'bg-gray-500/20 text-gray-400',
+  medium: 'bg-blue-500/20 text-blue-400',
+  high: 'bg-amber-500/20 text-amber-400',
+  urgent: 'bg-red-500/20 text-red-400',
 };
 
 export function TaskCard({ task, onClick, isDragging }: TaskCardProps) {
+  const { getBusinessColor, getBusinessName } = useBusiness();
+  
   const {
     attributes,
     listeners,
@@ -35,6 +39,15 @@ export function TaskCard({ task, onClick, isDragging }: TaskCardProps) {
 
   const isCurrentlyDragging = isDragging || isSortableDragging;
 
+  const getAssigneeName = (assigneeId?: string) => {
+    if (!assigneeId) return null;
+    const assignee = ASSIGNEES.find(a => a.id === assigneeId);
+    return assignee?.name || assigneeId;
+  };
+
+  const assigneeName = getAssigneeName(task.assignee_id);
+  const businessColor = task.project?.business ? getBusinessColor(task.project.business) : '#6366f1';
+
   return (
     <div
       ref={setNodeRef}
@@ -42,49 +55,94 @@ export function TaskCard({ task, onClick, isDragging }: TaskCardProps) {
       {...attributes}
       {...listeners}
       onClick={onClick}
-      className={`bg-white rounded-lg p-4 shadow-sm border border-gray-200 cursor-grab hover:shadow-md transition-shadow ${
-        isCurrentlyDragging ? 'opacity-50 shadow-lg ring-2 ring-indigo-500' : ''
+      className={`bg-[#1a1a3a] rounded-lg p-4 border border-[#2a2a4a] cursor-grab hover:border-indigo-500/50 transition-all card-glow ${
+        isCurrentlyDragging ? 'opacity-50 shadow-lg ring-2 ring-indigo-500 shadow-indigo-500/20' : ''
       }`}
     >
+      {/* Top row: Ticket number & Business badge */}
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        {/* Ticket number */}
+        {task.ticket_number && (
+          <span className="text-xs font-mono bg-[#2a2a4a] text-gray-400 px-2 py-0.5 rounded">
+            #{task.ticket_number}
+          </span>
+        )}
+        
+        {/* Business badge */}
+        {task.project?.business && (
+          <span
+            className="text-xs px-2 py-0.5 rounded"
+            style={{
+              backgroundColor: `${businessColor}20`,
+              color: businessColor,
+            }}
+          >
+            {getBusinessName(task.project.business)}
+          </span>
+        )}
+      </div>
+
       {/* Labels */}
       {task.labels && task.labels.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {task.labels.slice(0, 3).map((label) => (
             <span
               key={label}
-              className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded"
+              className="text-xs px-2 py-0.5 bg-indigo-500/20 text-indigo-400 rounded"
             >
               {label}
             </span>
           ))}
+          {task.labels.length > 3 && (
+            <span className="text-xs text-gray-500">+{task.labels.length - 3}</span>
+          )}
         </div>
       )}
 
       {/* Title */}
-      <h4 className="font-medium text-gray-900 mb-2 line-clamp-2">{task.title}</h4>
+      <h4 className="font-medium text-white mb-2 line-clamp-2">{task.title}</h4>
 
       {/* Description preview */}
       {task.description && (
         <p className="text-sm text-gray-500 mb-3 line-clamp-2">{task.description}</p>
       )}
 
-      {/* Footer */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {/* Priority */}
-          <span className={`text-xs px-2 py-1 rounded-full ${priorityColors[task.priority]}`}>
-            <Flag size={12} className="inline mr-1" />
-            {task.priority}
-          </span>
-        </div>
+      {/* Footer row 1: Priority & Assignee */}
+      <div className="flex items-center justify-between mb-2">
+        {/* Priority */}
+        <span className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 ${priorityStyles[task.priority]}`}>
+          <Flag size={10} />
+          {task.priority}
+        </span>
 
+        {/* Assignee */}
+        {assigneeName && (
+          <div className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded-full gradient-accent flex items-center justify-center text-[10px] text-white font-medium">
+              {assigneeName.charAt(0)}
+            </span>
+            <span className="text-xs text-gray-400">{assigneeName}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Footer row 2: Due date & Last updated */}
+      <div className="flex items-center justify-between text-xs text-gray-500">
         {/* Due date */}
-        {task.due_date && (
-          <div className="flex items-center gap-1 text-xs text-gray-500">
+        {task.due_date ? (
+          <div className="flex items-center gap-1">
             <Calendar size={12} />
             <span>{format(new Date(task.due_date), 'MMM d')}</span>
           </div>
+        ) : (
+          <div />
         )}
+
+        {/* Last updated */}
+        <div className="flex items-center gap-1">
+          <Clock size={12} />
+          <span>{formatDistanceToNow(new Date(task.updated_at), { addSuffix: true })}</span>
+        </div>
       </div>
     </div>
   );

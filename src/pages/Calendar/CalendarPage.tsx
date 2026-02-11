@@ -12,15 +12,15 @@ import {
   isSameDay,
   parseISO,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, Plus, Clock, MapPin } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBusiness } from '@/contexts/BusinessContext';
 import { supabase } from '@/lib/supabase';
-import type { CalendarEvent } from '@/types';
+import type { CalendarEvent, Business } from '@/types';
 
 export function CalendarPage() {
   const { user } = useAuth();
-  const { currentBusiness, businesses } = useBusiness();
+  const { businesses, getBusinessColor } = useBusiness();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -33,9 +33,8 @@ export function CalendarPage() {
   const [eventStart, setEventStart] = useState('');
   const [eventEnd, setEventEnd] = useState('');
   const [eventLocation, setEventLocation] = useState('');
+  const [eventBusiness, setEventBusiness] = useState<Business>('capture_health');
   const [allDay, setAllDay] = useState(false);
-
-  const currentBusinessInfo = businesses.find((b) => b.id === currentBusiness);
 
   useEffect(() => {
     if (user) {
@@ -48,6 +47,7 @@ export function CalendarPage() {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
 
+    // Fetch ALL events across all businesses
     const { data, error } = await supabase
       .from('calendar_events')
       .select('*')
@@ -67,27 +67,25 @@ export function CalendarPage() {
   const renderHeader = () => (
     <div className="flex items-center justify-between mb-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Calendar</h1>
-        <p className="text-gray-500 mt-1">
-          {format(currentDate, 'MMMM yyyy')}
-        </p>
+        <h1 className="text-2xl font-bold text-white">Calendar</h1>
+        <p className="text-gray-400 mt-1">{format(currentDate, 'MMMM yyyy')}</p>
       </div>
       <div className="flex items-center gap-3">
         <button
           onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-          className="p-2 hover:bg-gray-100 rounded-lg transition"
+          className="p-2 hover:bg-[#1a1a3a] rounded-lg transition text-gray-400 hover:text-white"
         >
           <ChevronLeft size={20} />
         </button>
         <button
           onClick={() => setCurrentDate(new Date())}
-          className="px-4 py-2 text-sm font-medium hover:bg-gray-100 rounded-lg transition"
+          className="px-4 py-2 text-sm font-medium hover:bg-[#1a1a3a] rounded-lg transition text-gray-400 hover:text-white"
         >
           Today
         </button>
         <button
           onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-          className="p-2 hover:bg-gray-100 rounded-lg transition"
+          className="p-2 hover:bg-[#1a1a3a] rounded-lg transition text-gray-400 hover:text-white"
         >
           <ChevronRight size={20} />
         </button>
@@ -96,7 +94,7 @@ export function CalendarPage() {
             setSelectedDate(new Date());
             setIsModalOpen(true);
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+          className="flex items-center gap-2 px-4 py-2 gradient-accent text-white rounded-lg hover:opacity-90 transition"
         >
           <Plus size={20} />
           <span className="hidden sm:inline">Add Event</span>
@@ -110,10 +108,7 @@ export function CalendarPage() {
     return (
       <div className="grid grid-cols-7 mb-2">
         {days.map((day) => (
-          <div
-            key={day}
-            className="text-center text-sm font-medium text-gray-500 py-2"
-          >
+          <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
             {day}
           </div>
         ))}
@@ -145,15 +140,15 @@ export function CalendarPage() {
               setSelectedDate(currentDay);
               setIsModalOpen(true);
             }}
-            className={`min-h-24 p-2 border border-gray-100 cursor-pointer hover:bg-gray-50 transition ${
-              !isSameMonth(day, monthStart) ? 'bg-gray-50 text-gray-400' : ''
-            } ${isSameDay(day, new Date()) ? 'bg-indigo-50' : ''}`}
+            className={`min-h-24 p-2 border border-[#1a1a3a] cursor-pointer hover:bg-[#1a1a3a]/50 transition ${
+              !isSameMonth(day, monthStart) ? 'bg-[#0a0a1a]/50 text-gray-600' : 'bg-[#12122a]'
+            } ${isSameDay(day, new Date()) ? 'bg-indigo-600/10 border-indigo-500/50' : ''}`}
           >
             <span
               className={`text-sm font-medium ${
                 isSameDay(day, new Date())
                   ? 'bg-indigo-600 text-white w-7 h-7 rounded-full flex items-center justify-center'
-                  : ''
+                  : 'text-gray-300'
               }`}
             >
               {format(day, 'd')}
@@ -164,17 +159,15 @@ export function CalendarPage() {
                   key={event.id}
                   className="text-xs px-2 py-1 rounded truncate"
                   style={{
-                    backgroundColor: event.color || currentBusinessInfo?.color + '20',
-                    color: event.color || currentBusinessInfo?.color,
+                    backgroundColor: (event.color || getBusinessColor(event.business as Business)) + '30',
+                    color: event.color || getBusinessColor(event.business as Business),
                   }}
                 >
                   {event.title}
                 </div>
               ))}
               {dayEvents.length > 3 && (
-                <div className="text-xs text-gray-500 px-2">
-                  +{dayEvents.length - 3} more
-                </div>
+                <div className="text-xs text-gray-500 px-2">+{dayEvents.length - 3} more</div>
               )}
             </div>
           </div>
@@ -188,22 +181,22 @@ export function CalendarPage() {
       );
       days = [];
     }
-    return <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">{rows}</div>;
+    return <div className="glass rounded-xl overflow-hidden">{rows}</div>;
   };
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const { error } = await supabase.from('calendar_events').insert({
       user_id: user?.id,
-      business: currentBusiness,
+      business: eventBusiness,
       title: eventTitle,
       description: eventDescription || null,
       start_time: eventStart,
       end_time: eventEnd || eventStart,
       all_day: allDay,
       location: eventLocation || null,
-      color: currentBusinessInfo?.color,
+      color: getBusinessColor(eventBusiness),
     });
 
     if (error) {
@@ -221,6 +214,7 @@ export function CalendarPage() {
     setEventStart('');
     setEventEnd('');
     setEventLocation('');
+    setEventBusiness('capture_health');
     setAllDay(false);
   };
 
@@ -230,7 +224,7 @@ export function CalendarPage() {
       {renderDays()}
       {loading ? (
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
         </div>
       ) : (
         renderCells()
@@ -239,38 +233,52 @@ export function CalendarPage() {
       {/* Event Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setIsModalOpen(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
+          <div className="relative bg-[#12122a] border border-[#2a2a4a] rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div className="px-6 py-4 border-b border-[#2a2a4a] flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white">
                 New Event
                 {selectedDate && (
-                  <span className="text-gray-500 text-sm ml-2">
-                    {format(selectedDate, 'MMM d, yyyy')}
-                  </span>
+                  <span className="text-gray-500 text-sm ml-2">{format(selectedDate, 'MMM d, yyyy')}</span>
                 )}
               </h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white">
+                <X size={20} />
+              </button>
             </div>
             <form onSubmit={handleCreateEvent} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Title *</label>
                 <input
                   type="text"
                   value={eventTitle}
                   onChange={(e) => setEventTitle(e.target.value)}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-2 bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Event title"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Business</label>
+                <select
+                  value={eventBusiness}
+                  onChange={(e) => setEventBusiness(e.target.value as Business)}
+                  className="w-full px-4 py-2 bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {businesses.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
                 <textarea
                   value={eventDescription}
                   onChange={(e) => setEventDescription(e.target.value)}
                   rows={2}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full px-4 py-2 bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                 />
               </div>
 
@@ -280,40 +288,40 @@ export function CalendarPage() {
                   id="allDay"
                   checked={allDay}
                   onChange={(e) => setAllDay(e.target.checked)}
-                  className="rounded border-gray-300"
+                  className="rounded border-[#2a2a4a] bg-[#1a1a3a] text-indigo-500"
                 />
-                <label htmlFor="allDay" className="text-sm text-gray-700">All day event</label>
+                <label htmlFor="allDay" className="text-sm text-gray-300">All day event</label>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start *</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Start *</label>
                   <input
                     type={allDay ? 'date' : 'datetime-local'}
                     value={eventStart}
                     onChange={(e) => setEventStart(e.target.value)}
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-4 py-2 bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">End</label>
                   <input
                     type={allDay ? 'date' : 'datetime-local'}
                     value={eventEnd}
                     onChange={(e) => setEventEnd(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-4 py-2 bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Location</label>
                 <input
                   type="text"
                   value={eventLocation}
                   onChange={(e) => setEventLocation(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-4 py-2 bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Add location"
                 />
               </div>
@@ -325,13 +333,13 @@ export function CalendarPage() {
                     setIsModalOpen(false);
                     resetForm();
                   }}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                  className="px-4 py-2 text-gray-400 hover:bg-[#1a1a3a] rounded-lg transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                  className="px-4 py-2 gradient-accent text-white rounded-lg hover:opacity-90 transition"
                 >
                   Create Event
                 </button>

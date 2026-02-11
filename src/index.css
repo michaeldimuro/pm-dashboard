@@ -1,23 +1,44 @@
 @import "tailwindcss";
 
-/* Custom CSS variables for theming */
+/* Mission Control Dark Theme */
 :root {
-  --color-primary: #6366f1;
-  --color-primary-dark: #4f46e5;
-  --color-secondary: #8b5cf6;
+  /* Core colors */
+  --color-bg-primary: #0a0a1a;
+  --color-bg-secondary: #12122a;
+  --color-bg-card: #1a1a3a;
+  --color-bg-hover: #252550;
+  
+  /* Accent colors */
+  --color-accent-primary: #6366f1;
+  --color-accent-secondary: #8b5cf6;
+  --color-accent-tertiary: #22d3ee;
+  
+  /* Text colors */
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  
+  /* Border colors */
+  --color-border: #2a2a4a;
+  --color-border-focus: #6366f1;
+  
+  /* Status colors */
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
-  --color-sidebar: #1e1e2e;
-  --color-sidebar-hover: #2a2a3e;
-  --color-card: #ffffff;
-  --color-background: #f4f4f5;
+  --color-info: #3b82f6;
+  
+  /* Business colors */
+  --color-capture-health: #22c55e;
+  --color-inspectable: #6366f1;
+  --color-synergy: #f59e0b;
 }
 
-/* Dark mode support */
-.dark {
-  --color-card: #27272a;
-  --color-background: #18181b;
+/* Base styles */
+body {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* Custom scrollbar */
@@ -27,21 +48,111 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--color-bg-secondary);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #71717a;
+  background: var(--color-border);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1aa;
+  background: var(--color-accent-primary);
 }
+
+/* Focus ring styles */
+*:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+/* Form inputs */
+input, textarea, select {
+  background-color: var(--color-bg-secondary);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Card glow effect */
+.card-glow {
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+}
+
+.card-glow:hover {
+  box-shadow: 0 0 30px rgba(99, 102, 241, 0.2);
+}
+
+/* Subtle animations */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Space-themed gradients */
+.gradient-space {
+  background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 50%, #1a103a 100%);
+}
+
+.gradient-accent {
+  background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-secondary) 100%);
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(26, 26, 58, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+/* Priority badge colors */
+.priority-low {
+  background-color: rgba(100, 116, 139, 0.2);
+  color: #94a3b8;
+}
+
+.priority-medium {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.priority-high {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+.priority-urgent {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+/* Status colors */
+.status-backlog { border-left-color: #71717a; }
+.status-todo { border-left-color: #3b82f6; }
+.status-in_progress { border-left-color: #f59e0b; }
+.status-review { border-left-color: #8b5cf6; }
+.status-done { border-left-color: #22c55e; }
+
+/* Business badge colors */
+.business-capture_health { background-color: rgba(34, 197, 94, 0.2); color: #22c55e; }
+.business-inspectable { background-color: rgba(99, 102, 241, 0.2); color: #818cf8; }
+.business-synergy { background-color: rgba(245, 158, 11, 0.2); color: #fbbf24; }
 
 /* Smooth transitions */
 * {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }

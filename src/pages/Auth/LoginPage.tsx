@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { LogIn, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Rocket } from 'lucide-react';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -29,25 +29,42 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
+    <div className="min-h-screen bg-[#0a0a1a] flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated background stars */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute w-2 h-2 bg-indigo-500/30 rounded-full top-[10%] left-[20%] animate-pulse" />
+        <div className="absolute w-1 h-1 bg-purple-500/40 rounded-full top-[30%] left-[70%] animate-pulse" style={{ animationDelay: '0.5s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-500/30 rounded-full top-[60%] left-[10%] animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute w-1 h-1 bg-indigo-500/40 rounded-full top-[80%] left-[80%] animate-pulse" style={{ animationDelay: '1.5s' }} />
+        <div className="absolute w-1 h-1 bg-purple-500/30 rounded-full top-[15%] left-[85%] animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute w-2 h-2 bg-cyan-500/20 rounded-full top-[70%] left-[40%] animate-pulse" style={{ animationDelay: '0.3s' }} />
+      </div>
+
+      {/* Gradient orb */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl" />
+      
+      <div className="relative glass rounded-2xl w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <LogIn className="text-white" size={28} />
+          {/* Logo */}
+          <div className="w-20 h-20 mx-auto mb-4 relative">
+            <div className="absolute inset-0 gradient-accent rounded-2xl rotate-6 opacity-50" />
+            <div className="absolute inset-0 bg-[#12122a] rounded-2xl flex items-center justify-center border border-indigo-500/30">
+              <Rocket className="text-indigo-400" size={36} />
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
-          <p className="text-gray-500 mt-1">Sign in to your PM Dashboard</p>
+          <h1 className="text-3xl font-bold text-white">Mission Control</h1>
+          <p className="text-gray-400 mt-2">Access your command center</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-sm">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Email
             </label>
             <input
@@ -55,13 +72,13 @@ export function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition"
+              className="w-full px-4 py-3 bg-[#12122a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Password
             </label>
             <div className="relative">
@@ -70,13 +87,13 @@ export function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition pr-12"
+                className="w-full px-4 py-3 bg-[#12122a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition pr-12"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition"
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
@@ -86,24 +103,24 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full gradient-accent text-white py-3 rounded-lg font-medium hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25"
           >
             {loading ? (
               <>
                 <Loader2 size={20} className="animate-spin" />
-                Signing in...
+                Launching...
               </>
             ) : (
-              'Sign In'
+              <>
+                <Rocket size={20} />
+                Launch Mission Control
+              </>
             )}
           </button>
         </form>
 
-        <p className="text-center text-gray-500 mt-6">
-          Don't have an account?{' '}
-          <Link to="/signup" className="text-indigo-600 hover:underline font-medium">
-            Sign up
-          </Link>
+        <p className="text-center text-gray-500 mt-6 text-sm">
+          Private access only
         </p>
       </div>
     </div>
