@@ -1,29 +1,35 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import type { Business } from '@/types';
 
 interface BusinessContextType {
-  currentBusiness: Business;
-  setCurrentBusiness: (business: Business) => void;
+  currentBusiness: Business | 'all';
+  setCurrentBusiness: (business: Business | 'all') => void;
   businesses: { id: Business; name: string; color: string }[];
+  getBusinessName: (id: Business) => string;
+  getBusinessColor: (id: Business) => string;
 }
 
 const businessDetails: { id: Business; name: string; color: string }[] = [
   { id: 'capture_health', name: 'Capture Health', color: '#22c55e' },
   { id: 'inspectable', name: 'Inspectable', color: '#6366f1' },
-  { id: 'synergy', name: 'Synergy Property', color: '#f59e0b' },
+  { id: 'synergy', name: 'Synergy', color: '#f59e0b' },
 ];
 
 const BusinessContext = createContext<BusinessContextType | undefined>(undefined);
 
 export function BusinessProvider({ children }: { children: React.ReactNode }) {
-  const [currentBusiness, setCurrentBusiness] = useState<Business>(() => {
-    const stored = localStorage.getItem('currentBusiness');
-    return (stored as Business) || 'capture_health';
-  });
+  // Default to 'all' to show aggregated data
+  const [currentBusiness, setCurrentBusiness] = useState<Business | 'all'>('all');
 
-  useEffect(() => {
-    localStorage.setItem('currentBusiness', currentBusiness);
-  }, [currentBusiness]);
+  const getBusinessName = (id: Business) => {
+    const business = businessDetails.find(b => b.id === id);
+    return business?.name || id;
+  };
+
+  const getBusinessColor = (id: Business) => {
+    const business = businessDetails.find(b => b.id === id);
+    return business?.color || '#6366f1';
+  };
 
   return (
     <BusinessContext.Provider
@@ -31,6 +37,8 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
         currentBusiness,
         setCurrentBusiness,
         businesses: businessDetails,
+        getBusinessName,
+        getBusinessColor,
       }}
     >
       {children}

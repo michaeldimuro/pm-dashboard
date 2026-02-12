@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
-import { Bell, Search, Menu } from 'lucide-react';
-import { useBusiness } from '@/contexts/BusinessContext';
+import { Bell, Search, Menu, Rocket } from 'lucide-react';
 
 export function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -10,20 +9,17 @@ export function MainLayout() {
     return stored === 'true';
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { currentBusiness, businesses } = useBusiness();
-
-  const currentBusinessInfo = businesses.find(b => b.id === currentBusiness);
 
   useEffect(() => {
     localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#0a0a1a]">
       {/* Mobile overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/70 z-40 lg:hidden backdrop-blur-sm"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
@@ -43,40 +39,40 @@ export function MainLayout() {
         }`}
       >
         {/* Top header */}
-        <header className="sticky top-0 z-30 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6">
+        <header className="sticky top-0 z-30 h-16 bg-[#0f0f23]/95 backdrop-blur-md border-b border-[#1a1a3a] flex items-center justify-between px-4 lg:px-6">
           <div className="flex items-center gap-4">
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+              className="lg:hidden p-2 hover:bg-[#1a1a3a] rounded-lg text-gray-400 hover:text-white transition"
             >
               <Menu size={20} />
             </button>
 
-            {/* Business badge */}
-            <div
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium text-white"
-              style={{ backgroundColor: currentBusinessInfo?.color }}
-            >
-              {currentBusinessInfo?.name}
+            {/* Mobile logo */}
+            <div className="lg:hidden flex items-center gap-2">
+              <div className="w-7 h-7 gradient-accent rounded-lg flex items-center justify-center">
+                <Rocket size={14} className="text-white" />
+              </div>
+              <span className="font-semibold text-white">Mission Control</span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             {/* Search */}
-            <div className="hidden md:flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
-              <Search size={18} className="text-gray-400" />
+            <div className="hidden md:flex items-center gap-2 bg-[#12122a] border border-[#2a2a4a] rounded-lg px-3 py-2">
+              <Search size={18} className="text-gray-500" />
               <input
                 type="text"
-                placeholder="Search..."
-                className="bg-transparent outline-none text-sm w-48"
+                placeholder="Search tasks..."
+                className="bg-transparent outline-none text-sm w-48 text-gray-300 placeholder-gray-500"
               />
             </div>
 
             {/* Notifications */}
-            <button className="relative p-2 hover:bg-gray-100 rounded-lg">
+            <button className="relative p-2 hover:bg-[#1a1a3a] rounded-lg text-gray-400 hover:text-white transition">
               <Bell size={20} />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
             </button>
           </div>
         </header>

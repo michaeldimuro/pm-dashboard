@@ -11,11 +11,9 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Building2,
+  Rocket,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useBusiness } from '@/contexts/BusinessContext';
-import type { Business } from '@/types';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -34,53 +32,47 @@ const navItems = [
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { user, signOut } = useAuth();
-  const { currentBusiness, setCurrentBusiness, businesses } = useBusiness();
-
-  const currentBusinessInfo = businesses.find(b => b.id === currentBusiness);
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-screen bg-[#1e1e2e] text-white flex flex-col transition-all duration-300 z-50 ${
+      className={`fixed left-0 top-0 h-screen bg-[#0f0f23] text-white flex flex-col transition-all duration-300 z-50 border-r border-[#1a1a3a] ${
         collapsed ? 'w-16' : 'w-64'
       }`}
     >
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-white/10">
+      <div className="h-16 flex items-center justify-between px-4 border-b border-[#1a1a3a]">
         {!collapsed && (
-          <span className="font-bold text-lg">PM Dashboard</span>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 gradient-accent rounded-lg flex items-center justify-center">
+              <Rocket size={18} className="text-white" />
+            </div>
+            <span className="font-bold text-lg bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+              Mission Control
+            </span>
+          </div>
+        )}
+        {collapsed && (
+          <div className="w-8 h-8 gradient-accent rounded-lg flex items-center justify-center mx-auto">
+            <Rocket size={18} className="text-white" />
+          </div>
         )}
         <button
           onClick={onToggle}
-          className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+          className={`p-2 hover:bg-[#1a1a3a] rounded-lg transition-colors ${collapsed ? 'hidden' : ''}`}
         >
-          {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+          <ChevronLeft size={20} className="text-gray-400" />
         </button>
       </div>
 
-      {/* Business Selector */}
-      <div className={`p-3 border-b border-white/10 ${collapsed ? 'px-2' : ''}`}>
-        {collapsed ? (
-          <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer"
-            style={{ backgroundColor: currentBusinessInfo?.color }}
-            title={currentBusinessInfo?.name}
-          >
-            <Building2 size={20} />
-          </div>
-        ) : (
-          <select
-            value={currentBusiness}
-            onChange={(e) => setCurrentBusiness(e.target.value as Business)}
-            className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            {businesses.map((b) => (
-              <option key={b.id} value={b.id} className="bg-[#1e1e2e]">
-                {b.name}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
+      {/* Expand button when collapsed */}
+      {collapsed && (
+        <button
+          onClick={onToggle}
+          className="p-2 hover:bg-[#1a1a3a] transition-colors border-b border-[#1a1a3a]"
+        >
+          <ChevronRight size={20} className="text-gray-400 mx-auto" />
+        </button>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 py-4 overflow-y-auto">
@@ -90,10 +82,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               <NavLink
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
                     isActive
-                      ? 'bg-indigo-600 text-white'
-                      : 'text-gray-400 hover:bg-white/10 hover:text-white'
+                      ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30'
+                      : 'text-gray-400 hover:bg-[#1a1a3a] hover:text-white border border-transparent'
                   } ${collapsed ? 'justify-center' : ''}`
                 }
                 title={collapsed ? item.label : undefined}
@@ -107,29 +99,29 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </nav>
 
       {/* User section */}
-      <div className="p-3 border-t border-white/10">
+      <div className="p-3 border-t border-[#1a1a3a]">
         {collapsed ? (
           <button
             onClick={signOut}
-            className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-lg transition-colors"
+            className="w-10 h-10 flex items-center justify-center hover:bg-[#1a1a3a] rounded-lg transition-colors mx-auto"
             title="Sign Out"
           >
-            <LogOut size={20} />
+            <LogOut size={20} className="text-gray-400" />
           </button>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center gap-3 px-2">
-              <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-medium">
+              <div className="w-9 h-9 rounded-full gradient-accent flex items-center justify-center text-sm font-medium text-white">
                 {user?.full_name?.charAt(0) || 'U'}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{user?.full_name}</p>
-                <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+                <p className="text-sm font-medium text-white truncate">{user?.full_name}</p>
+                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
               </div>
             </div>
             <button
               onClick={signOut}
-              className="w-full flex items-center gap-3 px-3 py-2 text-gray-400 hover:bg-white/10 hover:text-white rounded-lg transition-colors"
+              className="w-full flex items-center gap-3 px-3 py-2 text-gray-400 hover:bg-[#1a1a3a] hover:text-white rounded-lg transition-colors"
             >
               <LogOut size={18} />
               <span>Sign Out</span>

@@ -2,9 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { BusinessProvider } from './contexts/BusinessContext';
 import { MainLayout } from './components/Layout';
-import { LoginPage, SignupPage } from './pages/Auth';
+import { LoginPage } from './pages/Auth';
 import { DashboardPage } from './pages/Dashboard';
-import { KanbanBoard } from './pages/Kanban';
+import { KanbanBoard, DoneTasksPage } from './pages/Kanban';
 import { CalendarPage } from './pages/Calendar';
 import { NotesPage } from './pages/Notes';
 import { LeadsPage } from './pages/Leads';
@@ -16,8 +16,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a1a]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+          <span className="text-gray-400 text-sm">Loading Mission Control...</span>
+        </div>
       </div>
     );
   }
@@ -34,8 +37,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a1a]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+          <span className="text-gray-400 text-sm">Loading Mission Control...</span>
+        </div>
       </div>
     );
   }
@@ -50,20 +56,12 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
-      {/* Public routes */}
+      {/* Public routes - Login only (no signup) */}
       <Route
         path="/login"
         element={
           <PublicRoute>
             <LoginPage />
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/signup"
-        element={
-          <PublicRoute>
-            <SignupPage />
           </PublicRoute>
         }
       />
@@ -80,6 +78,7 @@ function AppRoutes() {
       >
         <Route path="/" element={<DashboardPage />} />
         <Route path="/kanban" element={<KanbanBoard />} />
+        <Route path="/kanban/done" element={<DoneTasksPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
         <Route path="/notes" element={<NotesPage />} />
         <Route path="/leads" element={<LeadsPage />} />
@@ -87,7 +86,7 @@ function AppRoutes() {
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
 
-      {/* Catch all */}
+      {/* Catch all - redirect to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

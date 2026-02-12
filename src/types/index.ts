@@ -1,4 +1,4 @@
-// Core types for PM Dashboard
+// Core types for Mission Control
 
 export type Business = 'capture_health' | 'inspectable' | 'synergy';
 
@@ -28,16 +28,34 @@ export interface Task {
   id: string;
   project_id: string;
   user_id: string;
+  ticket_number?: number;
   title: string;
   description?: string;
-  status: 'backlog' | 'todo' | 'in_progress' | 'review' | 'done';
+  status: 'backlog' | 'todo' | 'in_progress' | 'blocked' | 'review' | 'done';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   due_date?: string;
   assignee_id?: string;
   labels: string[];
   order: number;
+  blocked_reason?: string;
+  review_outcome?: string;
   created_at: string;
   updated_at: string;
+  // Joined fields
+  project?: Project;
+  assignee?: User;
+  comments?: TaskComment[];
+}
+
+export interface TaskComment {
+  id: string;
+  task_id: string;
+  user_id: string;
+  text: string;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  user?: User;
 }
 
 export interface KanbanColumn {
@@ -174,3 +192,19 @@ export interface DragItem {
   type: 'task' | 'note';
   columnId?: string;
 }
+
+// Filter types
+export interface TaskFilters {
+  business?: Business | 'all';
+  priority?: Task['priority'] | 'all';
+  assignee?: string | 'all';
+  search?: string;
+}
+
+// Assignee options (Michael and Xandus only)
+export const ASSIGNEES = [
+  { id: 'michael', name: 'Michael' },
+  { id: 'xandus', name: 'Xandus' },
+] as const;
+
+export type AssigneeId = typeof ASSIGNEES[number]['id'];

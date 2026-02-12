@@ -1,5 +1,6 @@
 -- Migration: Add comments and checklist support to tasks
 -- Date: 2026-02-11
+-- Minimal version (skips already-existing policies)
 
 -- Add ticket_number field to tasks table
 ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS ticket_number TEXT;
@@ -33,29 +34,3 @@ CREATE INDEX IF NOT EXISTS idx_task_checklist_task_id ON public.task_checklist_i
 -- Enable Row Level Security
 ALTER TABLE public.task_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.task_checklist_items ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies for comments
-CREATE POLICY "Users can view comments on their tasks" ON public.task_comments FOR SELECT 
-  USING (task_id IN (SELECT id FROM public.tasks WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can create comments on their tasks" ON public.task_comments FOR INSERT 
-  WITH CHECK (task_id IN (SELECT id FROM public.tasks WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can delete own comments" ON public.task_comments FOR DELETE 
-  USING (user_id = auth.uid());
-
--- RLS Policies for checklists
-CREATE POLICY "Users can view checklists on their tasks" ON public.task_checklist_items FOR SELECT 
-  USING (task_id IN (SELECT id FROM public.tasks WHERE user_id = auth.uid()));
-
-CREATE POLICY "Users can manage checklists on their tasks" ON public.task_checklist_items FOR ALL 
-  USING (task_id IN (SELECT id FROM public.tasks WHERE user_id = auth.uid()));
-
--- Add updated_at triggers if they don't exist
-CREATE TRIGGER IF NOT EXISTS update_task_comments_updated_at 
-  BEFORE UPDATE ON public.task_comments 
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
-
-CREATE TRIGGER IF NOT EXISTS update_task_checklist_items_updated_at 
-  BEFORE UPDATE ON public.task_checklist_items 
-  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
