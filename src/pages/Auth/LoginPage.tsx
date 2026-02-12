@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Eye, EyeOff, Loader2, Rocket } from 'lucide-react';
+import { Eye, EyeOff, Loader2, Rocket, AlertCircle } from 'lucide-react';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -9,19 +9,43 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, session } = useAuth();
   const navigate = useNavigate();
+
+  // If session exists, redirect to dashboard
+  useEffect(() => {
+    if (session) {
+      console.log('[Login] Session detected, redirecting to dashboard');
+      navigate('/', { replace: true });
+    }
+  }, [session, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Basic validation
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter both email and password.');
+      return;
+    }
+    
     setError('');
     setLoading(true);
 
     try {
-      await signIn(email, password);
-      navigate('/');
+      console.log('[Login] Submitting login form...');
+      const result = await signIn(email.trim(), password);
+      
+      if (result.success) {
+        console.log('[Login] Login successful, navigating to dashboard');
+        navigate('/', { replace: true });
+      } else {
+        console.log('[Login] Login failed:', result.error);
+        setError(result.error || 'Invalid login details. Please try again.');
+      }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to sign in';
+      console.error('[Login] Unexpected error:', err);
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(message);
     } finally {
       setLoading(false);
@@ -58,8 +82,9 @@ export function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-sm">
-              {error}
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-sm flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -72,7 +97,9 @@ export function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-3 bg-[#12122a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+              disabled={loading}
+              autoComplete="email"
+              className="w-full px-4 py-3 bg-[#12122a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="you@example.com"
             />
           </div>
@@ -87,13 +114,16 @@ export function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-3 bg-[#12122a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition pr-12"
+                disabled={loading}
+                autoComplete="current-password"
+                className="w-full px-4 py-3 bg-[#12122a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition pr-12 disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="••••••••"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition"
+                disabled={loading}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition disabled:opacity-50"
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
