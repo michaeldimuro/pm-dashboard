@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Eye, EyeOff, Loader2, Rocket, AlertCircle } from 'lucide-react';
@@ -9,21 +9,12 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn, session } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
-
-  // If session exists, redirect to dashboard
-  useEffect(() => {
-    if (session) {
-      console.log('[Login] Session detected, redirecting to dashboard');
-      navigate('/', { replace: true });
-    }
-  }, [session, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Basic validation
     if (!email.trim() || !password.trim()) {
       setError('Please enter both email and password.');
       return;
@@ -32,32 +23,12 @@ export function LoginPage() {
     setError('');
     setLoading(true);
 
-    // Timeout to prevent infinite loading state
-    const loginTimeout = setTimeout(() => {
-      console.error('[Login] Login timeout - request took too long');
-      setLoading(false);
-      setError('Login request timed out. Please check your connection and try again.');
-    }, 15000); // 15 second timeout
-
-    try {
-      console.log('[Login] Submitting login form...');
-      const result = await signIn(email.trim(), password);
-      
-      clearTimeout(loginTimeout);
-      
-      if (result.success) {
-        console.log('[Login] Login successful, navigating to dashboard');
-        navigate('/', { replace: true });
-      } else {
-        console.log('[Login] Login failed:', result.error);
-        setError(result.error || 'Invalid login details. Please try again.');
-        setLoading(false);
-      }
-    } catch (err: unknown) {
-      clearTimeout(loginTimeout);
-      console.error('[Login] Unexpected error:', err);
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
-      setError(message);
+    const result = await signIn(email.trim(), password);
+    
+    if (result.success) {
+      navigate('/', { replace: true });
+    } else {
+      setError(result.error || 'Invalid credentials');
       setLoading(false);
     }
   };
@@ -79,7 +50,6 @@ export function LoginPage() {
       
       <div className="relative glass rounded-2xl w-full max-w-md p-8">
         <div className="text-center mb-8">
-          {/* Logo */}
           <div className="w-20 h-20 mx-auto mb-4 relative">
             <div className="absolute inset-0 gradient-accent rounded-2xl rotate-6 opacity-50" />
             <div className="absolute inset-0 bg-[#12122a] rounded-2xl flex items-center justify-center border border-indigo-500/30">
@@ -99,9 +69,7 @@ export function LoginPage() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Email
-            </label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
             <input
               type="email"
               value={email}
@@ -109,15 +77,13 @@ export function LoginPage() {
               required
               disabled={loading}
               autoComplete="email"
-              className="w-full px-4 py-3 bg-[#12122a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full px-4 py-3 bg-[#12122a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition disabled:opacity-50"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Password
-            </label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
@@ -126,7 +92,7 @@ export function LoginPage() {
                 required
                 disabled={loading}
                 autoComplete="current-password"
-                className="w-full px-4 py-3 bg-[#12122a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition pr-12 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-4 py-3 bg-[#12122a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition pr-12 disabled:opacity-50"
                 placeholder="••••••••"
               />
               <button
@@ -143,7 +109,7 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full gradient-accent text-white py-3 rounded-lg font-medium hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25"
+            className="w-full gradient-accent text-white py-3 rounded-lg font-medium hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25"
           >
             {loading ? (
               <>
@@ -159,9 +125,7 @@ export function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-gray-500 mt-6 text-sm">
-          Private access only
-        </p>
+        <p className="text-center text-gray-500 mt-6 text-sm">Private access only</p>
       </div>
     </div>
   );
