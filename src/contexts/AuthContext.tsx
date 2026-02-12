@@ -25,19 +25,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchUserProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
+    try {
+      console.log('Fetching user profile for:', userId);
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-    if (error) {
-      console.error('Error fetching user profile:', error);
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        setUser(null);
+      } else {
+        console.log('User profile loaded:', data);
+        setUser(data);
+      }
+    } catch (err) {
+      console.error('Exception fetching user profile:', err);
       setUser(null);
-    } else {
-      setUser(data);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -104,18 +112,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw error;
-    
-    // Wait for session to be set in state before returning
-    // This ensures the auth listener has processed the login before navigation
-    if (data.session?.user) {
-      setSession(data.session);
-      setSupabaseUser(data.session.user);
-      await fetchUserProfile(data.session.user.id);
+    try {
+      console.log('Attempting sign in for:', email);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        console.error('Sign in error:', error);
+        throw error;
+      }
+      
+      console.log('Sign in successful, waiting for auth state update');
+      // The onAuthStateChange listener will handle setting session and fetching profile
+      // Just wait briefly for the listener to fire
+      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('Sign in complete');
+    } catch (err) {
+      console.error('Sign in exception:', err);
+      throw err;
     }
   };
 
