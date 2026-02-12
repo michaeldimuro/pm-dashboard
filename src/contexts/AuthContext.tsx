@@ -81,11 +81,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('[Auth] Checking session validity...');
       
-      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+      // Add timeout to prevent hanging
+      const getSessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise<{ data: { session: null }, error: Error }>((resolve) =>
+        setTimeout(() => {
+          console.warn('[Auth] Session check timed out');
+          resolve({ data: { session: null }, error: new Error('Session check timed out') });
+        }, 5000)
+      );
+      
+      const { data: { session: currentSession }, error } = await Promise.race([getSessionPromise, timeoutPromise]);
       
       if (error) {
         console.error('[Auth] Session check error:', error);
-        clearStorageAndState();
+        // Don't clear storage on timeout - might be temporary network issue
+        if (error.message !== 'Session check timed out') {
+          clearStorageAndState();
+        }
         return false;
       }
       
@@ -103,7 +115,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (isExpired || isNearExpiry) {
         console.log('[Auth] Session expired or near expiry, attempting refresh...');
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+        
+        const refreshPromise = supabase.auth.refreshSession();
+        const refreshTimeoutPromise = new Promise<{ data: { session: null }, error: Error }>((resolve) =>
+          setTimeout(() => {
+            console.warn('[Auth] Session refresh timed out');
+            resolve({ data: { session: null }, error: new Error('Session refresh timed out') });
+          }, 5000)
+        );
+        
+        const { data: refreshData, error: refreshError } = await Promise.race([refreshPromise, refreshTimeoutPromise]);
         
         if (refreshError || !refreshData.session) {
           console.error('[Auth] Session refresh failed:', refreshError);
@@ -121,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return true;
     } catch (err) {
       console.error('[Auth] Exception during session check:', err);
-      clearStorageAndState();
+      // Don't clear storage on exception - might be temporary
       return false;
     }
   }, [clearAuthState, clearStorageAndState]);
@@ -260,10 +281,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthError(null);
     
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Add timeout wrapper for the sign in call
+      const signInPromise = supabase.auth.signInWithPassword({
         email,
         password,
       });
+      
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Sign in request timed out')), AUTH_TIMEOUT_MS)
+      );
+      
+      const { data, error } = await Promise.race([signInPromise, timeoutPromise]);
       
       if (error) {
         console.error('[Auth] Sign in error:', error);
@@ -285,16 +313,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(data.session);
       setSupabaseUser(data.user);
       
-      // Fetch user profile
-      const profile = await fetchUserProfile(data.user.id);
-      
-      if (!profile) {
-        console.warn('[Auth] User profile not found, but auth succeeded');
-        // Still allow login even if profile fetch fails - user might be new
+      // Fetch user profile with timeout (don't block login if it fails)
+      try {
+        const profilePromise = fetchUserProfile(data.user.id);
+        const profileTimeout = new Promise<null>((resolve) =>
+          setTimeout(() => {
+            console.warn('[Auth] Profile fetch timed out, continuing without profile');
+            resolve(null);
+          }, 5000)
+        );
+        
+        const profile = await Promise.race([profilePromise, profileTimeout]);
+        
+        if (!profile) {
+          console.warn('[Auth] User profile not found or timed out, but auth succeeded');
+          // Still allow login even if profile fetch fails - user might be new
+        }
+        
+        setUser(profile);
+        console.log('[Auth] Sign in complete, user:', profile?.email || data.user.email);
+      } catch (profileErr) {
+        console.error('[Auth] Profile fetch error (non-blocking):', profileErr);
+        // Don't fail login if profile fetch fails
       }
-      
-      setUser(profile);
-      console.log('[Auth] Sign in complete, user:', profile?.email || data.user.email);
       
       return { success: true };
     } catch (err) {

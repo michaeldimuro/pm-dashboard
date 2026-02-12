@@ -26,11 +26,15 @@ function LoadingScreen({ message = 'Loading Mission Control...' }: { message?: s
   );
 }
 
+// Timeout for "Verifying credentials..." state (prevent infinite hang)
+const VERIFY_TIMEOUT_MS = 5000;
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, user, loading, checkSession } = useAuth();
   const location = useLocation();
   const [isChecking, setIsChecking] = useState(false);
   const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+  const [verifyTimedOut, setVerifyTimedOut] = useState(false);
 
   // Prevent infinite loading with a timeout
   useEffect(() => {
@@ -46,6 +50,21 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     }
   }, [loading]);
 
+  // Prevent infinite "Verifying credentials..." with a separate timeout
+  useEffect(() => {
+    if (isChecking && !user) {
+      const timeout = setTimeout(() => {
+        console.log('[ProtectedRoute] Verify credentials timeout reached');
+        setVerifyTimedOut(true);
+        setIsChecking(false);
+      }, VERIFY_TIMEOUT_MS);
+      
+      return () => clearTimeout(timeout);
+    } else {
+      setVerifyTimedOut(false);
+    }
+  }, [isChecking, user]);
+
   // Check session validity on route changes
   const verifySession = useCallback(async () => {
     if (session && !loading) {
@@ -55,6 +74,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         if (!isValid) {
           console.log('[ProtectedRoute] Session invalid, will redirect to login');
         }
+      } catch (err) {
+        console.error('[ProtectedRoute] Session check error:', err);
       } finally {
         setIsChecking(false);
       }
@@ -84,15 +105,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   // Session exists but user profile not loaded yet - show brief loading
-  // This handles the case where session is valid but profile fetch is slow
-  if (!user && isChecking) {
+  // But only if we haven't timed out waiting for verification
+  if (!user && isChecking && !verifyTimedOut) {
     return <LoadingScreen message="Verifying credentials..." />;
   }
 
   // No user profile but have session - still allow access
   // (user profile might fail to load but auth is still valid)
-  if (!user && !isChecking) {
-    console.log('[ProtectedRoute] Session valid but no user profile - allowing access');
+  if (!user) {
+    console.log('[ProtectedRoute] Session valid but no user profile - allowing access anyway');
   }
 
   return <>{children}</>;

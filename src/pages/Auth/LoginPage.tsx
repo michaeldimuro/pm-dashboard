@@ -32,9 +32,18 @@ export function LoginPage() {
     setError('');
     setLoading(true);
 
+    // Timeout to prevent infinite loading state
+    const loginTimeout = setTimeout(() => {
+      console.error('[Login] Login timeout - request took too long');
+      setLoading(false);
+      setError('Login request timed out. Please check your connection and try again.');
+    }, 15000); // 15 second timeout
+
     try {
       console.log('[Login] Submitting login form...');
       const result = await signIn(email.trim(), password);
+      
+      clearTimeout(loginTimeout);
       
       if (result.success) {
         console.log('[Login] Login successful, navigating to dashboard');
@@ -42,12 +51,13 @@ export function LoginPage() {
       } else {
         console.log('[Login] Login failed:', result.error);
         setError(result.error || 'Invalid login details. Please try again.');
+        setLoading(false);
       }
     } catch (err: unknown) {
+      clearTimeout(loginTimeout);
       console.error('[Login] Unexpected error:', err);
       const message = err instanceof Error ? err.message : 'An unexpected error occurred';
       setError(message);
-    } finally {
       setLoading(false);
     }
   };
