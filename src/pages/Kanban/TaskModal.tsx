@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, Send, Clock, MessageSquare } from 'lucide-react';
+import { X, Trash2, Send, Clock, MessageSquare, Lock } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBusiness } from '@/contexts/BusinessContext';
@@ -27,11 +27,16 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, task, projects }:
   const [assigneeId, setAssigneeId] = useState('');
   const [labels, setLabels] = useState('');
   const [projectId, setProjectId] = useState('');
+  const [blockedReason, setBlockedReason] = useState('');
+  const [reviewOutcome, setReviewOutcome] = useState('');
   
   // Comments
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loadingComments, setLoadingComments] = useState(false);
+  
+  // Read-only check: title/description locked after backlog
+  const isContentLocked = Boolean(task && task.status !== 'backlog');
 
   useEffect(() => {
     if (task) {
@@ -42,6 +47,8 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, task, projects }:
       setAssigneeId(task.assignee_id || '');
       setLabels(task.labels?.join(', ') || '');
       setProjectId(task.project_id || '');
+      setBlockedReason(task.blocked_reason || '');
+      setReviewOutcome(task.review_outcome || '');
       fetchComments(task.id);
     } else {
       setTitle('');
@@ -51,6 +58,8 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, task, projects }:
       setAssigneeId('');
       setLabels('');
       setProjectId(projects[0]?.id || '');
+      setBlockedReason('');
+      setReviewOutcome('');
       setComments([]);
     }
   }, [task, isOpen, projects]);
@@ -104,6 +113,8 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, task, projects }:
       assignee_id: assigneeId || undefined,
       labels: labels ? labels.split(',').map((l) => l.trim()).filter(Boolean) : [],
       project_id: projectId || undefined,
+      blocked_reason: blockedReason || undefined,
+      review_outcome: reviewOutcome || undefined,
     });
   };
 
@@ -178,13 +189,19 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, task, projects }:
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Title *
+              {isContentLocked && (
+                <span className="ml-2 text-xs text-amber-400/80">(locked after backlog)</span>
+              )}
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
-              className="w-full px-4 py-2 bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              disabled={isContentLocked}
+              className={`w-full px-4 py-2 bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                isContentLocked ? 'opacity-60 cursor-not-allowed' : ''
+              }`}
               placeholder="Task title"
             />
           </div>
@@ -193,12 +210,18 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, task, projects }:
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Description
+              {isContentLocked && (
+                <span className="ml-2 text-xs text-amber-400/80">(locked after backlog)</span>
+              )}
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="w-full px-4 py-2 bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              disabled={isContentLocked}
+              className={`w-full px-4 py-2 bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none ${
+                isContentLocked ? 'opacity-60 cursor-not-allowed' : ''
+              }`}
               placeholder="Task description (optional)"
             />
           </div>
@@ -265,6 +288,26 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, task, projects }:
               placeholder="bug, feature, urgent (comma separated)"
             />
           </div>
+
+          {/* Blocked Reason - shown when task is blocked */}
+          {task?.status === 'blocked' && blockedReason && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+              <label className="block text-sm font-medium text-red-400 mb-2">
+                🚫 Blocked Reason
+              </label>
+              <p className="text-gray-300 text-sm whitespace-pre-wrap">{blockedReason}</p>
+            </div>
+          )}
+
+          {/* Review Outcome - shown when task is in review or done */}
+          {(task?.status === 'review' || task?.status === 'done') && reviewOutcome && (
+            <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+              <label className="block text-sm font-medium text-purple-400 mb-2">
+                📋 Review Outcome
+              </label>
+              <p className="text-gray-300 text-sm whitespace-pre-wrap">{reviewOutcome}</p>
+            </div>
+          )}
 
           {/* Last Updated */}
           {task && (

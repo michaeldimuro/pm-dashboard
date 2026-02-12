@@ -39,8 +39,16 @@ const defaultColumns: Column[] = [
   { id: 'backlog', title: 'Backlog', status: 'backlog', color: '#71717a' },
   { id: 'todo', title: 'To Do', status: 'todo', color: '#3b82f6' },
   { id: 'in_progress', title: 'In Progress', status: 'in_progress', color: '#f59e0b' },
+  { id: 'blocked', title: 'Blocked', status: 'blocked', color: '#ef4444' },
   { id: 'review', title: 'Review', status: 'review', color: '#8b5cf6' },
 ];
+
+// Status transition modal for blocked_reason and review_outcome
+interface StatusTransition {
+  taskId: string;
+  newStatus: Task['status'];
+  taskTitle: string;
+}
 
 export function KanbanBoard() {
   const { currentBusiness, businesses, getBusinessName } = useBusiness();
@@ -59,6 +67,9 @@ export function KanbanBoard() {
     assignee: 'all',
     search: '',
   });
+  // Status transition state for prompting blocked_reason / review_outcome
+  const [statusTransition, setStatusTransition] = useState<StatusTransition | null>(null);
+  const [transitionInput, setTransitionInput] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -182,6 +193,19 @@ export function KanbanBoard() {
       }
     }
 
+    // If moving to blocked or review, prompt for reason/outcome
+    if (newStatus === 'blocked' || newStatus === 'review') {
+      setStatusTransition({
+        taskId: active.id as string,
+        newStatus,
+        taskTitle: activeTask.title,
+      });
+      setTransitionInput('');
+      // Revert the optimistic update until confirmed
+      fetchAllTasks();
+      return;
+    }
+
     const { error } = await supabase
       .from('tasks')
       .update({ status: newStatus })
@@ -191,6 +215,39 @@ export function KanbanBoard() {
       console.error('Error updating task:', error);
       fetchAllTasks();
     }
+  };
+
+  // Handle confirming status transition with reason/outcome
+  const handleConfirmTransition = async () => {
+    if (!statusTransition || !transitionInput.trim()) return;
+
+    const updateData: Partial<Task> = {
+      status: statusTransition.newStatus,
+    };
+
+    if (statusTransition.newStatus === 'blocked') {
+      updateData.blocked_reason = transitionInput.trim();
+    } else if (statusTransition.newStatus === 'review') {
+      updateData.review_outcome = transitionInput.trim();
+    }
+
+    const { error } = await supabase
+      .from('tasks')
+      .update(updateData)
+      .eq('id', statusTransition.taskId);
+
+    if (error) {
+      console.error('Error updating task:', error);
+    }
+
+    setStatusTransition(null);
+    setTransitionInput('');
+    fetchAllTasks();
+  };
+
+  const handleCancelTransition = () => {
+    setStatusTransition(null);
+    setTransitionInput('');
   };
 
   const handleCreateProject = async () => {
@@ -464,6 +521,68 @@ export function KanbanBoard() {
         task={editingTask}
         projects={projects}
       />
+
+      {/* Status Transition Modal - for blocked_reason / review_outcome */}
+      {statusTransition && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleCancelTransition} />
+          <div className="relative bg-[#12122a] border border-[#2a2a4a] rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white">
+                {statusTransition.newStatus === 'blocked' ? '🚫 Moving to Blocked' : '👀 Moving to Review'}
+              </h2>
+              <button
+                onClick={handleCancelTransition}
+                className="p-2 hover:bg-[#1a1a3a] rounded-lg transition text-gray-400 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <p className="text-gray-400 text-sm mb-4">
+              Task: <span className="text-white">{statusTransition.taskTitle}</span>
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                {statusTransition.newStatus === 'blocked' 
+                  ? 'What is blocking this task? *'
+                  : 'What is the outcome/deliverable? *'}
+              </label>
+              <textarea
+                value={transitionInput}
+                onChange={(e) => setTransitionInput(e.target.value)}
+                rows={3}
+                placeholder={statusTransition.newStatus === 'blocked' 
+                  ? 'e.g., Waiting for API access, blocked by dependency...'
+                  : 'e.g., PR link, research doc URL, marketing material...'}
+                className="w-full px-4 py-2 bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleCancelTransition}
+                className="px-4 py-2 text-gray-400 hover:bg-[#1a1a3a] rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmTransition}
+                disabled={!transitionInput.trim()}
+                className={`px-4 py-2 text-white rounded-lg transition ${
+                  statusTransition.newStatus === 'blocked'
+                    ? 'bg-red-600 hover:bg-red-700 disabled:bg-red-600/50'
+                    : 'bg-purple-600 hover:bg-purple-700 disabled:bg-purple-600/50'
+                } disabled:cursor-not-allowed`}
+              >
+                {statusTransition.newStatus === 'blocked' ? 'Mark as Blocked' : 'Submit for Review'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -31,12 +31,14 @@ export interface Task {
   ticket_number?: number;
   title: string;
   description?: string;
-  status: 'backlog' | 'todo' | 'in_progress' | 'review' | 'done';
+  status: 'backlog' | 'todo' | 'in_progress' | 'blocked' | 'review' | 'done';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   due_date?: string;
   assignee_id?: string;
   labels: string[];
   order: number;
+  blocked_reason?: string;
+  review_outcome?: string;
   created_at: string;
   updated_at: string;
   // Joined fields
@@ -199,11 +201,10 @@ export interface TaskFilters {
   search?: string;
 }
 
-// Assignee options
+// Assignee options (Michael and Xandus only)
 export const ASSIGNEES = [
   { id: 'michael', name: 'Michael' },
   { id: 'xandus', name: 'Xandus' },
-  { id: 'jarvis', name: 'Jarvis' },
 ] as const;
 
 export type AssigneeId = typeof ASSIGNEES[number]['id'];

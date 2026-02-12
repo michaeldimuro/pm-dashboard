@@ -116,6 +116,14 @@ export function DoneTasksPage() {
                     <p className="text-sm text-gray-500 mt-1 line-clamp-2">{task.description}</p>
                   )}
 
+                  {/* Review outcome */}
+                  {task.review_outcome && (
+                    <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3 mt-2">
+                      <span className="text-xs font-medium text-purple-400">📋 Outcome:</span>
+                      <p className="text-sm text-gray-300 mt-1 line-clamp-3 whitespace-pre-wrap">{task.review_outcome}</p>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
                     {/* Assignee */}
                     <span className="flex items-center gap-1">

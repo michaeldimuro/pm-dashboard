@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, Flag, Clock, MessageSquare } from 'lucide-react';
+import { Calendar, Flag, Clock, MessageSquare, Ban } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useBusiness } from '@/contexts/BusinessContext';
 import type { Task } from '@/types';
@@ -105,6 +105,14 @@ export function TaskCard({ task, onClick, isDragging }: TaskCardProps) {
       {/* Description preview */}
       {task.description && (
         <p className="text-sm text-gray-500 mb-3 line-clamp-2">{task.description}</p>
+      )}
+
+      {/* Blocked reason indicator */}
+      {task.status === 'blocked' && task.blocked_reason && (
+        <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-md p-2 mb-3">
+          <Ban size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-red-300 line-clamp-2">{task.blocked_reason}</p>
+        </div>
       )}
 
       {/* Footer row 1: Priority & Assignee */}
