@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Calendar, Flag, Clock, MessageSquare, Ban, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import { Calendar, Flag, Clock, MessageSquare, Ban, RotateCcw } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useBusiness } from '@/contexts/BusinessContext';
 import type { Task } from '@/types';
@@ -11,8 +11,6 @@ interface TaskCardProps {
   task: Task;
   onClick?: () => void;
   isDragging?: boolean;
-  onMarkDone?: (taskId: string) => void;
-  onReject?: (taskId: string) => void;
 }
 
 const priorityStyles = {
@@ -22,7 +20,7 @@ const priorityStyles = {
   urgent: 'bg-red-500/20 text-red-400',
 };
 
-export function TaskCard({ task, onClick, isDragging, onMarkDone, onReject }: TaskCardProps) {
+export function TaskCard({ task, onClick, isDragging }: TaskCardProps) {
   const { getBusinessColor, getBusinessName } = useBusiness();
   
   const {
@@ -122,36 +120,6 @@ export function TaskCard({ task, onClick, isDragging, onMarkDone, onReject }: Ta
         <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-md p-2 mb-3">
           <RotateCcw size={14} className="text-amber-400 mt-0.5 flex-shrink-0" />
           <p className="text-xs text-amber-300 line-clamp-2"><span className="font-medium">Rejected:</span> {task.rejection_reason}</p>
-        </div>
-      )}
-
-      {/* Review action buttons */}
-      {task.status === 'review' && (onMarkDone || onReject) && (
-        <div className="flex gap-2 mb-3">
-          {onMarkDone && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onMarkDone(task.id);
-              }}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 hover:border-green-500/50 text-green-400 text-xs font-medium rounded-md transition"
-            >
-              <CheckCircle size={14} />
-              Done
-            </button>
-          )}
-          {onReject && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onReject(task.id);
-              }}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 hover:border-red-500/50 text-red-400 text-xs font-medium rounded-md transition"
-            >
-              <XCircle size={14} />
-              Reject
-            </button>
-          )}
         </div>
       )}
 

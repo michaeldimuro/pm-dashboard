@@ -261,6 +261,7 @@ export function KanbanBoard() {
 
   // Handle marking a review task as done
   const handleMarkDone = async (taskId: string) => {
+    setIsModalOpen(false); // Close the task modal
     const { error } = await supabase
       .from('tasks')
       .update({ status: 'done' })
@@ -276,6 +277,7 @@ export function KanbanBoard() {
   const handleRejectTask = (taskId: string) => {
     const task = tasks.find(t => t.id === taskId);
     if (task) {
+      setIsModalOpen(false); // Close the task modal
       setRejectionState({ taskId, taskTitle: task.title });
       setRejectionReason('');
     }
@@ -555,8 +557,6 @@ export function KanbanBoard() {
                         key={task.id}
                         task={task}
                         onClick={() => handleTaskClick(task)}
-                        onMarkDone={column.status === 'review' ? handleMarkDone : undefined}
-                        onReject={column.status === 'review' ? handleRejectTask : undefined}
                       />
                     ))}
                   </SortableContext>
@@ -577,6 +577,8 @@ export function KanbanBoard() {
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveTask}
         onDelete={editingTask ? () => handleDeleteTask(editingTask.id) : undefined}
+        onMarkDone={editingTask?.status === 'review' ? handleMarkDone : undefined}
+        onReject={editingTask?.status === 'review' ? handleRejectTask : undefined}
         task={editingTask}
         projects={projects}
       />

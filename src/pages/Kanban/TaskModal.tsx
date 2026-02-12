@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, Send, Clock, MessageSquare, Lock, RotateCcw } from 'lucide-react';
+import { X, Trash2, Send, Clock, MessageSquare, Lock, RotateCcw, CheckCircle, XCircle } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBusiness } from '@/contexts/BusinessContext';
@@ -12,11 +12,13 @@ interface TaskModalProps {
   onClose: () => void;
   onSave: (task: Partial<Task>) => void;
   onDelete?: () => void;
+  onMarkDone?: (taskId: string) => void;
+  onReject?: (taskId: string) => void;
   task?: Task | null;
   projects: Project[];
 }
 
-export function TaskModal({ isOpen, onClose, onSave, onDelete, task, projects }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, onSave, onDelete, onMarkDone, onReject, task, projects }: TaskModalProps) {
   const { user } = useAuth();
   const { getBusinessName, getBusinessColor } = useBusiness();
   
@@ -386,6 +388,32 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, task, projects }:
                   <Send size={18} />
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Review Actions - Show Done/Reject buttons when task is in review */}
+          {task?.status === 'review' && (onMarkDone || onReject) && (
+            <div className="flex gap-3 pt-4 border-t border-[#2a2a4a]">
+              {onMarkDone && (
+                <button
+                  type="button"
+                  onClick={() => onMarkDone(task.id)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600/20 hover:bg-green-600/30 border border-green-500/30 hover:border-green-500/50 text-green-400 font-medium rounded-lg transition"
+                >
+                  <CheckCircle size={18} />
+                  Mark as Done
+                </button>
+              )}
+              {onReject && (
+                <button
+                  type="button"
+                  onClick={() => onReject(task.id)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 hover:border-red-500/50 text-red-400 font-medium rounded-lg transition"
+                >
+                  <XCircle size={18} />
+                  Reject
+                </button>
+              )}
             </div>
           )}
 
