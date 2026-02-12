@@ -30,3 +30,14 @@ dist-ssr
 
 # Vercel
 .vercel
+
+# OpenClaw operational files (never commit)
+AGENTS.md
+HEARTBEAT.md
+SOUL.md
+USER.md
+IDENTITY.md
+OPERATIONS.md
+MEMORY.md
+BOOTSTRAP.md
+OPTIMIZATION.md
