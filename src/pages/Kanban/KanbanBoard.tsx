@@ -50,6 +50,12 @@ interface StatusTransition {
   taskTitle: string;
 }
 
+// Rejection modal for review tasks
+interface RejectionState {
+  taskId: string;
+  taskTitle: string;
+}
+
 export function KanbanBoard() {
   const { currentBusiness, businesses, getBusinessName } = useBusiness();
   const { user } = useAuth();
@@ -70,6 +76,9 @@ export function KanbanBoard() {
   // Status transition state for prompting blocked_reason / review_outcome
   const [statusTransition, setStatusTransition] = useState<StatusTransition | null>(null);
   const [transitionInput, setTransitionInput] = useState('');
+  // Rejection state for review tasks
+  const [rejectionState, setRejectionState] = useState<RejectionState | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -248,6 +257,54 @@ export function KanbanBoard() {
   const handleCancelTransition = () => {
     setStatusTransition(null);
     setTransitionInput('');
+  };
+
+  // Handle marking a review task as done
+  const handleMarkDone = async (taskId: string) => {
+    const { error } = await supabase
+      .from('tasks')
+      .update({ status: 'done' })
+      .eq('id', taskId);
+
+    if (error) {
+      console.error('Error marking task as done:', error);
+    }
+    fetchAllTasks();
+  };
+
+  // Handle opening rejection modal for a review task
+  const handleRejectTask = (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (task) {
+      setRejectionState({ taskId, taskTitle: task.title });
+      setRejectionReason('');
+    }
+  };
+
+  // Handle confirming rejection with reason
+  const handleConfirmRejection = async () => {
+    if (!rejectionState || !rejectionReason.trim()) return;
+
+    const { error } = await supabase
+      .from('tasks')
+      .update({
+        status: 'in_progress',
+        rejection_reason: rejectionReason.trim(),
+      })
+      .eq('id', rejectionState.taskId);
+
+    if (error) {
+      console.error('Error rejecting task:', error);
+    }
+
+    setRejectionState(null);
+    setRejectionReason('');
+    fetchAllTasks();
+  };
+
+  const handleCancelRejection = () => {
+    setRejectionState(null);
+    setRejectionReason('');
   };
 
   const handleCreateProject = async () => {
@@ -498,6 +555,8 @@ export function KanbanBoard() {
                         key={task.id}
                         task={task}
                         onClick={() => handleTaskClick(task)}
+                        onMarkDone={column.status === 'review' ? handleMarkDone : undefined}
+                        onReject={column.status === 'review' ? handleRejectTask : undefined}
                       />
                     ))}
                   </SortableContext>
@@ -578,6 +637,64 @@ export function KanbanBoard() {
                 } disabled:cursor-not-allowed`}
               >
                 {statusTransition.newStatus === 'blocked' ? 'Mark as Blocked' : 'Submit for Review'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Modal - for rejecting review tasks */}
+      {rejectionState && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleCancelRejection} />
+          <div className="relative bg-[#12122a] border border-[#2a2a4a] rounded-xl shadow-xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white">
+                ↩️ Reject Task
+              </h2>
+              <button
+                onClick={handleCancelRejection}
+                className="p-2 hover:bg-[#1a1a3a] rounded-lg transition text-gray-400 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <p className="text-gray-400 text-sm mb-4">
+              Task: <span className="text-white">{rejectionState.taskTitle}</span>
+            </p>
+
+            <p className="text-gray-500 text-xs mb-4">
+              This will move the task back to <span className="text-amber-400">In Progress</span>.
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Rejection Reason *
+              </label>
+              <textarea
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={3}
+                placeholder="e.g., Missing edge case handling, needs more tests, UI polish needed..."
+                className="w-full px-4 py-2 bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 resize-none"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={handleCancelRejection}
+                className="px-4 py-2 text-gray-400 hover:bg-[#1a1a3a] rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmRejection}
+                disabled={!rejectionReason.trim()}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-600/50 text-white rounded-lg transition disabled:cursor-not-allowed"
+              >
+                Reject & Return to In Progress
               </button>
             </div>
           </div>

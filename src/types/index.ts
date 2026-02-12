@@ -39,6 +39,7 @@ export interface Task {
   order: number;
   blocked_reason?: string;
   review_outcome?: string;
+  rejection_reason?: string;
   created_at: string;
   updated_at: string;
   // Joined fields

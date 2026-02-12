@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Trash2, Send, Clock, MessageSquare, Lock } from 'lucide-react';
+import { X, Trash2, Send, Clock, MessageSquare, Lock, RotateCcw } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBusiness } from '@/contexts/BusinessContext';
@@ -29,6 +29,7 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, task, projects }:
   const [projectId, setProjectId] = useState('');
   const [blockedReason, setBlockedReason] = useState('');
   const [reviewOutcome, setReviewOutcome] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
   
   // Comments
   const [comments, setComments] = useState<TaskComment[]>([]);
@@ -49,6 +50,7 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, task, projects }:
       setProjectId(task.project_id || '');
       setBlockedReason(task.blocked_reason || '');
       setReviewOutcome(task.review_outcome || '');
+      setRejectionReason(task.rejection_reason || '');
       fetchComments(task.id);
     } else {
       setTitle('');
@@ -60,6 +62,7 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, task, projects }:
       setProjectId(projects[0]?.id || '');
       setBlockedReason('');
       setReviewOutcome('');
+      setRejectionReason('');
       setComments([]);
     }
   }, [task, isOpen, projects]);
@@ -306,6 +309,19 @@ export function TaskModal({ isOpen, onClose, onSave, onDelete, task, projects }:
                 📋 Review Outcome
               </label>
               <p className="text-gray-300 text-sm whitespace-pre-wrap">{reviewOutcome}</p>
+            </div>
+          )}
+
+          {/* Rejection Reason - shown when task was rejected from review */}
+          {task?.status === 'in_progress' && rejectionReason && (
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <RotateCcw size={16} className="text-amber-400" />
+                <label className="text-sm font-medium text-amber-400">
+                  Rejection Feedback
+                </label>
+              </div>
+              <p className="text-gray-300 text-sm whitespace-pre-wrap">{rejectionReason}</p>
             </div>
           )}
 
