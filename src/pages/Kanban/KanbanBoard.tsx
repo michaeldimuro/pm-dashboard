@@ -79,6 +79,20 @@ export function KanbanBoard() {
   // Rejection state for review tasks
   const [rejectionState, setRejectionState] = useState<RejectionState | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Mobile detection effect
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -309,6 +323,35 @@ export function KanbanBoard() {
     setRejectionReason('');
   };
 
+  // Handle mobile status change
+  const handleMobileStatusChange = async (taskId: string, newStatus: Task['status']) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    // If moving to blocked or review, prompt for reason/outcome
+    if (newStatus === 'blocked' || newStatus === 'review') {
+      setStatusTransition({
+        taskId,
+        newStatus,
+        taskTitle: task.title,
+      });
+      setTransitionInput('');
+      return;
+    }
+
+    // Otherwise, update directly
+    const { error } = await supabase
+      .from('tasks')
+      .update({ status: newStatus })
+      .eq('id', taskId);
+
+    if (error) {
+      console.error('Error updating task:', error);
+    }
+    
+    fetchAllTasks();
+  };
+
   const handleCreateProject = async () => {
     const name = prompt('Enter project name:');
     if (!name) return;
@@ -529,7 +572,39 @@ export function KanbanBoard() {
             Create Project
           </button>
         </div>
+      ) : isMobile ? (
+        // Mobile view without drag-and-drop
+        <div className="flex gap-4 overflow-x-auto pb-4">
+            {defaultColumns.map((column) => {
+              const columnTasks = getTasksByStatus(column.status);
+              return (
+                <KanbanColumn
+                  key={column.id}
+                  id={column.id}
+                  title={column.title}
+                  color={column.color}
+                  count={columnTasks.length}
+                >
+                  <SortableContext
+                    items={columnTasks.map((t) => t.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {columnTasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        onClick={() => handleTaskClick(task)}
+                        onStatusChange={handleMobileStatusChange}
+                        isMobile={isMobile}
+                      />
+                    ))}
+                  </SortableContext>
+                </KanbanColumn>
+              );
+            })}
+          </div>
       ) : (
+        // Desktop view with drag-and-drop
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -557,6 +632,8 @@ export function KanbanBoard() {
                         key={task.id}
                         task={task}
                         onClick={() => handleTaskClick(task)}
+                        onStatusChange={handleMobileStatusChange}
+                        isMobile={isMobile}
                       />
                     ))}
                   </SortableContext>
@@ -566,7 +643,7 @@ export function KanbanBoard() {
           </div>
 
           <DragOverlay>
-            {activeTask && <TaskCard task={activeTask} isDragging />}
+            {activeTask && <TaskCard task={activeTask} isDragging isMobile={isMobile} />}
           </DragOverlay>
         </DndContext>
       )}
