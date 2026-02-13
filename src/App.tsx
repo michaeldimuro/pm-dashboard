@@ -23,10 +23,35 @@ function LoadingScreen() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuth();
+  const { session, loading, authError } = useAuth();
 
   if (loading) {
     return <LoadingScreen />;
+  }
+
+  // Show auth error with option to retry
+  if (authError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a1a]">
+        <div className="flex flex-col items-center gap-4 max-w-md text-center p-6">
+          <div className="text-red-500 text-4xl">⚠️</div>
+          <h2 className="text-xl font-semibold text-white">Authentication Error</h2>
+          <p className="text-gray-400">{authError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+          >
+            Refresh Page
+          </button>
+          <button
+            onClick={() => window.location.href = '/login'}
+            className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!session) {
@@ -37,10 +62,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading } = useAuth();
+  const { session, loading, authError } = useAuth();
 
   if (loading) {
     return <LoadingScreen />;
+  }
+
+  // If there's an auth error on public route, just show the login page
+  if (authError) {
+    return <>{children}</>;
   }
 
   if (session) {
