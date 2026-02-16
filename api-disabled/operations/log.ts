@@ -113,7 +113,7 @@ export default async function handler(req: Request): Promise<Response> {
       );
     }
 
-    const { event, timestamp, signature } = logRequest;
+    const { event: operationEvent, timestamp, signature } = logRequest;
 
     if (!signature) {
       console.warn('[Log] Missing signature');
@@ -124,7 +124,7 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     // Verify signature
-    const isValid = await verifySignature(event, timestamp, signature);
+    const isValid = await verifySignature(operationEvent, timestamp, signature);
     if (!isValid) {
       console.warn('[Log] Invalid signature');
       return new Response(
@@ -134,28 +134,27 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     // Validate event
-    const event = logRequest.event;
-    if (!validateEvent(event)) {
-      console.warn('[Log] Invalid event structure:', event);
+    if (!validateEvent(operationEvent)) {
+      console.warn('[Log] Invalid event structure:', operationEvent);
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid event structure' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[Log] Inserting event: ${event.type} (${event.id})`);
+    console.log(`[Log] Inserting event: ${operationEvent.type} (${operationEvent.id})`);
 
     // Insert into operations_events
     const { error: insertError } = await supabase
       .from('operations_events')
       .insert([
         {
-          event_id: event.id,
-          event_type: event.type,
-          agent_id: event.agent_id,
-          session_id: event.session_id,
-          payload: event.payload,
-          triggered_at: event.timestamp,
+          event_id: operationEvent.id,
+          event_type: operationEvent.type,
+          agent_id: operationEvent.agent_id,
+          session_id: operationEvent.session_id,
+          payload: operationEvent.payload,
+          triggered_at: operationEvent.timestamp,
         },
       ]);
 
@@ -168,19 +167,19 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     // Also update agent_sessions if this is a session event
-    if (event.type === 'agent.session.started') {
+    if (operationEvent.type === 'agent.session.started') {
       const { error: sessionError } = await supabase
         .from('agent_sessions')
         .insert([
           {
-            agent_id: event.agent_id,
-            session_id: event.session_id,
-            agent_name: event.payload.agent_name || event.agent_id,
-            agent_type: event.payload.agent_type || 'main',
+            agent_id: operationEvent.agent_id,
+            session_id: operationEvent.session_id,
+            agent_name: operationEvent.payload.agent_name || operationEvent.agent_id,
+            agent_type: operationEvent.payload.agent_type || 'main',
             status: 'active',
-            channel: event.payload.channel,
-            assigned_task: event.payload.initial_task,
-            metadata: event.payload.metadata || {},
+            channel: operationEvent.payload.channel,
+            assigned_task: operationEvent.payload.initial_task,
+            metadata: operationEvent.payload.metadata || {},
           },
         ])
         .select('*')
@@ -189,42 +188,42 @@ export default async function handler(req: Request): Promise<Response> {
       if (sessionError && !sessionError.message.includes('duplicate')) {
         console.warn('[Log] Could not create session:', sessionError);
       }
-    } else if (event.type === 'agent.session.terminated' || event.type === 'subagent.completed') {
+    } else if (operationEvent.type === 'agent.session.terminated' || operationEvent.type === 'subagent.completed') {
       // Update session status
       const { error: updateError } = await supabase
         .from('agent_sessions')
         .update({
           status: 'terminated',
-          terminated_at: event.timestamp,
-          summary: event.payload.summary,
+          terminated_at: operationEvent.timestamp,
+          summary: operationEvent.payload.summary,
           progress_percent: 100,
         })
-        .eq('session_id', event.session_id);
+        .eq('session_id', operationEvent.session_id);
 
       if (updateError) {
         console.warn('[Log] Could not update session:', updateError);
       }
-    } else if (event.type === 'agent.status_updated') {
+    } else if (operationEvent.type === 'agent.status_updated') {
       // Update session progress
       const { error: updateError } = await supabase
         .from('agent_sessions')
         .update({
-          status: event.payload.status === 'working' ? 'active' : 'idle',
-          progress_percent: event.payload.progress_percent || 0,
-          estimated_completion: event.payload.estimated_completion,
-          last_activity_at: event.timestamp,
+          status: operationEvent.payload.status === 'working' ? 'active' : 'idle',
+          progress_percent: operationEvent.payload.progress_percent || 0,
+          estimated_completion: operationEvent.payload.estimated_completion,
+          last_activity_at: operationEvent.timestamp,
         })
-        .eq('session_id', event.session_id);
+        .eq('session_id', operationEvent.session_id);
 
       if (updateError) {
         console.warn('[Log] Could not update session progress:', updateError);
       }
     }
 
-    console.log(`[Log] Event logged successfully: ${event.id}`);
+    console.log(`[Log] Event logged successfully: ${operationEvent.id}`);
 
     return new Response(
-      JSON.stringify({ success: true, event_id: event.id }),
+      JSON.stringify({ success: true, event_id: operationEvent.id }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (err) {
