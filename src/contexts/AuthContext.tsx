@@ -116,13 +116,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (initializationAttempted.current) return;
     initializationAttempted.current = true;
 
+    let abortController = new AbortController();
+
     const initialize = async () => {
       console.log('[Auth] ========== INITIALIZATION START ==========');
       console.log('[Auth] Location:', window.location.pathname);
       console.log('[Auth] LocalStorage keys:', Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-')));
       
       try {
+        // Check if aborted before starting
+        if (abortController.signal.aborted) {
+          console.log('[Auth] Initialization aborted before starting');
+          return;
+        }
+
         // Attempt 1: Get current session
+        console.log('[Auth] Calling getSession()...');
         let { data: { session: currentSession }, error } = await supabase.auth.getSession();
         
         console.log('[Auth] Initial session check:', {
@@ -134,10 +143,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           error: error?.message,
         });
 
+        // Check if aborted after async call
+        if (abortController.signal.aborted) {
+          console.log('[Auth] Aborted after getSession');
+          return;
+        }
+
         // If session exists but is expired or invalid, try refresh
         if (currentSession && !isSessionValid(currentSession)) {
           console.log('[Auth] Session exists but expired/expiring, attempting refresh...');
           const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          
+          // Check if aborted after refresh
+          if (abortController.signal.aborted) {
+            console.log('[Auth] Aborted after refresh attempt');
+            return;
+          }
           
           if (!refreshError && refreshData.session) {
             currentSession = refreshData.session;
@@ -153,6 +174,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!currentSession && !error) {
           console.log('[Auth] No session found, attempting refresh from stored token...');
           const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          
+          // Check if aborted after refresh
+          if (abortController.signal.aborted) {
+            console.log('[Auth] Aborted after refresh from token');
+            return;
+          }
           
           if (!refreshError && refreshData.session) {
             currentSession = refreshData.session;
@@ -175,6 +202,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // If still no valid session after all attempts, clear and finish
         if (!currentSession || !isSessionValid(currentSession)) {
           console.log('[Auth] No valid session available after initialization');
+          
+          // Check if aborted before clearing storage
+          if (abortController.signal.aborted) {
+            console.log('[Auth] Aborted, not clearing storage');
+            setLoading(false);
+            return;
+          }
+          
           clearAuthStorage();
           setSession(null);
           setSupabaseUser(null);
@@ -183,6 +218,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         
+        // Check if aborted before setting state
+        if (abortController.signal.aborted) {
+          console.log('[Auth] Aborted before setting session state');
+          return;
+        }
+
         // Valid session established!
         console.log('[Auth] ✓ Valid session established');
         console.log('[Auth] Setting session state...');
@@ -209,6 +250,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('[Auth] Attempting to fetch full profile from database...');
         try {
           const profile = await fetchUserProfile(currentSession.user.id);
+          
+          // Check if aborted after profile fetch
+          if (abortController.signal.aborted) {
+            console.log('[Auth] Aborted after profile fetch');
+            return;
+          }
+          
           if (profile) {
             console.log('[Auth] ✓ Profile fetched from database:', profile.full_name);
             setUser(profile);
@@ -219,6 +267,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.error('[Auth] Profile fetch failed (using fallback):', err);
         }
         
+        // Final abort check before finishing
+        if (abortController.signal.aborted) {
+          console.log('[Auth] Aborted before completing initialization');
+          return;
+        }
+
         // Schedule proactive refresh
         console.log('[Auth] Scheduling token refresh...');
         scheduleTokenRefresh(currentSession);
@@ -228,6 +282,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('[Auth] ========== INITIALIZATION COMPLETE ==========');
         
       } catch (err) {
+        // Check if this is an AbortError (from React Strict Mode or unmount)
+        if (err instanceof Error && err.name === 'AbortError') {
+          console.warn('[Auth] Initialization aborted (likely React Strict Mode or unmount)');
+          // Don't clear storage on abort - just stop loading
+          setLoading(false);
+          return;
+        }
+
         console.error('[Auth] Initialization exception:', err);
         clearAuthStorage();
         setSession(null);
@@ -241,6 +303,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Cleanup on unmount
     return () => {
+      console.log('[Auth] Cleanup: Aborting initialization if in progress');
+      abortController.abort();
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
       }
