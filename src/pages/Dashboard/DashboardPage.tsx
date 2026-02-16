@@ -71,14 +71,21 @@ export function DashboardPage() {
   }, [user, loading]);
 
   const fetchDashboardData = async () => {
+    console.log('[Dashboard] fetchDashboardData called, user.id:', user?.id);
     setLoading(true);
     try {
       // Fetch ALL tasks across all businesses
-      const { data: allTasks } = await supabase
+      const { data: allTasks, error: tasksError } = await supabase
         .from('tasks')
         .select('*, project:projects(*)')
         .eq('user_id', user?.id)
         .order('updated_at', { ascending: false });
+
+      if (tasksError) {
+        console.error('[Dashboard] Error fetching tasks:', tasksError);
+      } else {
+        console.log('[Dashboard] Tasks fetched:', allTasks?.length || 0);
+      }
 
       // Fetch ALL leads across all businesses
       const { data: allLeads } = await supabase

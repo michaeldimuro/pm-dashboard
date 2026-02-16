@@ -227,6 +227,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Valid session established!
         console.log('[Auth] ✓ Valid session established');
         console.log('[Auth] Setting session state...');
+        
+        // CRITICAL: Explicitly set the session on the Supabase client
+        // This ensures the client uses the validated session for all queries
+        console.log('[Auth] Setting session on Supabase client...');
+        await supabase.auth.setSession({
+          access_token: currentSession.access_token,
+          refresh_token: currentSession.refresh_token,
+        });
+        console.log('[Auth] Supabase client session set');
+        
         setSession(currentSession);
         setSupabaseUser(currentSession.user);
         console.log('[Auth] Session state set');
@@ -406,6 +416,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       console.log('[Auth] Sign in successful');
+      
+      // CRITICAL: Explicitly set session on Supabase client
+      await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+      console.log('[Auth] Supabase client session set after sign in');
       
       // State will be updated by onAuthStateChange listener
       // But set immediately for faster UI response

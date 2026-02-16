@@ -104,9 +104,13 @@ export function KanbanBoard() {
   );
 
   useEffect(() => {
+    console.log('[Kanban] useEffect triggered, user:', user ? `${user.full_name} (${user.id})` : 'null');
     if (user) {
+      console.log('[Kanban] User exists, fetching projects and tasks...');
       fetchProjects();
       fetchAllTasks();
+    } else {
+      console.log('[Kanban] No user yet, waiting...');
     }
   }, [user]);
 
@@ -127,7 +131,9 @@ export function KanbanBoard() {
   };
 
   const fetchAllTasks = async () => {
+    console.log('[Kanban] fetchAllTasks called, user.id:', user?.id);
     setLoading(true);
+    
     // Fetch all tasks with project info (for business association)
     const { data, error } = await supabase
       .from('tasks')
@@ -137,8 +143,12 @@ export function KanbanBoard() {
       .order('order', { ascending: true });
 
     if (error) {
-      console.error('Error fetching tasks:', error);
+      console.error('[Kanban] Error fetching tasks:', error);
     } else {
+      console.log('[Kanban] Tasks fetched:', data?.length || 0);
+      if (data && data.length > 0) {
+        console.log('[Kanban] Sample task:', data[0].title, '(status:', data[0].status, ')');
+      }
       setTasks(data || []);
     }
     setLoading(false);
