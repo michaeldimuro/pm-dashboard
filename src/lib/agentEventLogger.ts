@@ -1,11 +1,23 @@
 /**
- * Agent Event Logger
- * Utility for agents to log their activities to the Operations Room
+ * Agent Event Logger - Browser Version
+ * Utility for logging activities from the browser to the Operations Room
  *
- * Usage (in any agent code):
+ * For Node.js agent code, import from a server-side module instead.
+ * This module uses browser-compatible APIs (crypto.subtle, sessionStorage).
+ *
+ * Usage:
  * ```
  * import { logOperationEvent } from '@/lib/agentEventLogger'
  *
+ * // Set credentials (typically done by app initialization)
+ * setLoggerCredentials({
+ *   agentId: 'agent:main:main',
+ *   sessionId: 'uuid-here',
+ *   loggerUrl: 'https://...',
+ *   loggerSecret: 'secret-here'
+ * })
+ *
+ * // Log events
  * await logOperationEvent({
  *   type: 'agent.session.started',
  *   payload: { ... }
@@ -13,8 +25,40 @@
  * ```
  */
 
-import { v4 as uuidv4 } from 'uuid';
-import crypto from 'crypto';
+/**
+ * Generate a UUID v4 (browser-compatible)
+ */
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Sign a message using HMAC-SHA256 (browser-compatible)
+ */
+async function signHMACSHA256(message: string, secret: string): Promise<string> {
+  try {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+
+    const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
+    return Array.from(new Uint8Array(signature))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  } catch (err) {
+    console.error('[Logger] Signing error:', err);
+    throw err;
+  }
+}
 
 /**
  * Operation Event structure
@@ -32,6 +76,38 @@ export interface OperationEvent extends OperationEventPayload {
 }
 
 /**
+ * Logger credentials
+ */
+interface LoggerCredentials {
+  agentId: string;
+  sessionId: string;
+  loggerUrl: string;
+  loggerSecret: string;
+}
+
+let loggerConfig: LoggerCredentials | null = null;
+
+/**
+ * Set logger credentials
+ * Called during app initialization with credentials from environment/auth
+ */
+export function setLoggerCredentials(credentials: LoggerCredentials): void {
+  loggerConfig = credentials;
+  console.log('[Logger] Credentials configured:', {
+    agentId: credentials.agentId,
+    sessionId: credentials.sessionId.substring(0, 8) + '...',
+    url: credentials.loggerUrl,
+  });
+}
+
+/**
+ * Get current logger configuration
+ */
+export function getLoggerConfig(): LoggerCredentials | null {
+  return loggerConfig;
+}
+
+/**
  * Log an operation event
  * Automatically signs the request and sends it to the logging webhook
  */
@@ -39,25 +115,17 @@ export async function logOperationEvent(
   event: OperationEventPayload
 ): Promise<{ success: boolean; error?: string; eventId?: string }> {
   try {
-    // Get environment variables
-    const agentId = process.env.AGENT_ID;
-    const sessionId = process.env.SESSION_ID;
-    const loggerUrl = process.env.OPERATION_LOGGER_URL;
-    const loggerSecret = process.env.OPERATION_LOGGER_SECRET;
-
-    // Validate required env vars
-    if (!agentId || !sessionId || !loggerUrl || !loggerSecret) {
-      console.warn('[Agent] Missing operation logger environment variables');
-      console.warn(`  AGENT_ID: ${agentId ? '✓' : '✗'}`);
-      console.warn(`  SESSION_ID: ${sessionId ? '✓' : '✗'}`);
-      console.warn(`  OPERATION_LOGGER_URL: ${loggerUrl ? '✓' : '✗'}`);
-      console.warn(`  OPERATION_LOGGER_SECRET: ${loggerSecret ? '✓' : '✗'}`);
-      return { success: false, error: 'Operation logger not configured' };
+    // Get credentials
+    if (!loggerConfig) {
+      console.warn('[Logger] Not configured - skipping event log');
+      return { success: false, error: 'Logger not configured' };
     }
+
+    const { agentId, sessionId, loggerUrl, loggerSecret } = loggerConfig;
 
     // Build event
     const fullEvent: OperationEvent = {
-      id: `evt-${event.type}-${uuidv4()}`,
+      id: `evt-${event.type}-${generateUUID()}`,
       type: event.type,
       timestamp: new Date().toISOString(),
       agent_id: agentId,
@@ -72,13 +140,10 @@ export async function logOperationEvent(
     });
 
     // Sign the request
-    const signature = crypto
-      .createHmac('sha256', loggerSecret)
-      .update(requestBody)
-      .digest('hex');
+    const signature = await signHMACSHA256(requestBody, loggerSecret);
 
     // Send to logging webhook
-    console.log(`[Agent] Logging event: ${event.type}`);
+    console.log(`[Logger] Logging event: ${event.type}`);
 
     const response = await fetch(loggerUrl, {
       method: 'POST',
@@ -91,18 +156,18 @@ export async function logOperationEvent(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      const errorMsg = errorData.error || response.statusText;
-      console.error(`[Agent] Logging failed: ${errorMsg}`);
+      const errorMsg = (errorData as any).error || response.statusText;
+      console.error(`[Logger] Logging failed: ${errorMsg}`);
       return { success: false, error: errorMsg };
     }
 
     const result = await response.json();
-    console.log(`[Agent] Event logged: ${fullEvent.id}`);
+    console.log(`[Logger] Event logged: ${fullEvent.id}`);
 
     return { success: true, eventId: fullEvent.id };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[Agent] Logging error: ${message}`);
+    console.error(`[Logger] Logging error: ${message}`);
     return { success: false, error: message };
   }
 }

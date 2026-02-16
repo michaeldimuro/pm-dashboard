@@ -5,10 +5,10 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useOperationsStore } from './useOperationsStore';
-import type { OperationEvent } from '@/types/operations';
+import { useOperationsStore } from '../stores/operationsStore';
+import type { OperationEvent, SubAgent } from '@/types/operations';
 
-const WS_URL = process.env.VITE_OPROOM_WS_URL || 'wss://api.dashboard.michaeldimuro.com/api/realtime';
+const WS_URL = import.meta.env.VITE_OPROOM_WS_URL || 'wss://api.dashboard.michaeldimuro.com/api/realtime';
 const RECONNECT_DELAY_MS = 1000;
 const MAX_RECONNECT_DELAY_MS = 30000;
 
@@ -22,14 +22,16 @@ interface WebSocketMessage {
 export function useOperationRoomWebSocket() {
   const { session } = useAuth();
   const wsRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectDelayRef = useRef(RECONNECT_DELAY_MS);
   const [isConnected, setIsConnected] = useState(false);
 
-  const addEvent = useOperationsStore((state) => state.addEvent);
-  const updateMainAgent = useOperationsStore((state) => state.updateMainAgent);
-  const addSubAgent = useOperationsStore((state) => state.addSubAgent);
-  const updateSubAgent = useOperationsStore((state) => state.updateSubAgent);
+  // Get store directly instead of trying to call it as a function
+  const store = useOperationsStore();
+  const addEvent = store.addEvent;
+  const updateMainAgent = store.updateMainAgent;
+  const addSubAgent = store.addSubAgent;
+  const updateSubAgent = store.updateSubAgent;
 
   /**
    * Connect to WebSocket
@@ -135,7 +137,7 @@ export function useOperationRoomWebSocket() {
     (message: WebSocketMessage) => {
       // System messages
       if (message.channel === '_system') {
-        const data = message.data as any;
+        const data = message.data as Record<string, unknown>;
         if (data.type === 'connected') {
           console.log('[WS] Welcome:', data.message);
         } else if (data.type === 'ping') {
@@ -146,46 +148,53 @@ export function useOperationRoomWebSocket() {
       }
 
       // Operation events
-      const payload = message.data as any;
-      if (payload.event_type) {
+      const payload = message.data as Record<string, unknown>;
+      if (payload.type) {
         const event = payload as OperationEvent;
-        console.log('[WS] Event received:', event.event_type);
+        console.log('[WS] Event received:', event.type);
 
         // Add to live feed
         addEvent(event);
 
         // Update state based on event type
-        if (event.event_type === 'agent.session.started') {
-          if (event.payload.agent_type === 'main') {
+        if (event.type === 'agent.session.started') {
+          const eventPayload = event.payload as Record<string, unknown>;
+          if (eventPayload.agent_type === 'main') {
             updateMainAgent({
               status: 'active',
-              currentTask: event.payload.initial_task,
+              currentTask: (eventPayload.initial_task as string) || '',
               progress: 0,
               startedAt: new Date(event.timestamp),
             });
           }
-        } else if (event.event_type === 'subagent.spawned') {
-          addSubAgent({
-            id: event.payload.subagent_id,
-            name: event.payload.subagent_name,
-            assignedTask: event.payload.assigned_task,
+        } else if (event.type === 'subagent.spawned') {
+          const eventPayload = event.payload as Record<string, unknown>;
+          const subAgent: SubAgent = {
+            id: (eventPayload.subagent_id as string) || '',
+            name: (eventPayload.subagent_name as string) || '',
+            currentTask: (eventPayload.assigned_task as string) || '',
             status: 'spawned',
             progress: 0,
             startedAt: new Date(event.timestamp),
-          });
-        } else if (event.event_type === 'agent.status_updated') {
-          if (event.payload.agent_type === 'main') {
+            lastActivityAt: new Date(event.timestamp),
+            parentSessionId: event.session_id || '',
+            sessionId: (eventPayload.session_id as string) || '',
+          };
+          addSubAgent(subAgent);
+        } else if (event.type === 'agent.status_updated') {
+          const eventPayload = event.payload as Record<string, unknown>;
+          if (eventPayload.agent_type === 'main') {
             updateMainAgent({
-              status: event.payload.status,
-              progress: event.payload.progress_percent,
+              status: eventPayload.status as 'active' | 'idle' | 'working' | 'waiting',
+              progress: (eventPayload.progress_percent as number) || 0,
             });
           } else {
             updateSubAgent(event.agent_id, {
-              status: event.payload.status,
-              progress: event.payload.progress_percent,
+              status: eventPayload.status as 'spawned' | 'active' | 'idle' | 'working' | 'completed' | 'failed',
+              progress: (eventPayload.progress_percent as number) || 0,
             });
           }
-        } else if (event.event_type === 'task.state_changed') {
+        } else if (event.type === 'task.state_changed') {
           // Task state changes will update the task flow store
           // This is handled by useTaskFlow hook
         }

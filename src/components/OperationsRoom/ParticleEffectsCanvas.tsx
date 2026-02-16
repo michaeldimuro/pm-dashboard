@@ -221,7 +221,7 @@ export const ParticleEffectsCanvas: React.FC<ParticleEffectsCanvasProps> = ({
       style={{
         mixBlendMode: 'screen',
         // Allow interaction for debug clicks
-        pointerEvents: process.env.NODE_ENV === 'development' ? 'auto' : 'none',
+        pointerEvents: import.meta.env.DEV ? 'auto' : 'none',
       }}
     />
   );

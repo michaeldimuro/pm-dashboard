@@ -27,7 +27,7 @@ export class Particle {
     color: string = 'rgba(34, 211, 238, 1)'
   ) {
     this.position = { x, y };
-    this.velocity = { vx, y: vy };
+    this.velocity = { x: vx, y: vy };
     this.acceleration = { x: 0, y: 0.5 }; // gravity
     this.life = 1;
     this.maxLife = maxLife;

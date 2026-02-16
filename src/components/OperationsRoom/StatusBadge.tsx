@@ -21,6 +21,7 @@ const STATUS_CONFIG = {
   // Task statuses
   backlog: { bg: 'bg-slate-600', text: 'text-slate-100', label: 'Backlog', icon: '📋' },
   todo: { bg: 'bg-blue-600', text: 'text-blue-100', label: 'To Do', icon: '□' },
+  inProgress: { bg: 'bg-cyan-600', text: 'text-cyan-100', label: 'In Progress', icon: '▶' },
   in_progress: { bg: 'bg-cyan-600', text: 'text-cyan-100', label: 'In Progress', icon: '▶' },
   review: { bg: 'bg-yellow-600', text: 'text-yellow-100', label: 'Review', icon: '👁' },
   done: { bg: 'bg-green-600', text: 'text-green-100', label: 'Done', icon: '✓' },

@@ -343,12 +343,42 @@ export const OperationsRoom = () => {
             >
               {/* Kanban */}
               <div className="lg:col-span-2 border border-slate-700 rounded-lg p-4 bg-slate-900/50 backdrop-blur-sm">
-                <TaskFlowKanban tasks={tasks} />
+                <TaskFlowKanban taskFlow={{
+                  backlog: tasks.filter((t: Task) => !t.priority || t.priority === 'low').map((t: Task) => ({
+                    id: t.id,
+                    title: t.title,
+                    status: 'backlog' as const,
+                    priority: 'low' as const,
+                    assigneeId: t.assignee || '',
+                  })),
+                  todo: tasks.filter((t: Task) => t.priority === 'medium').map((t: Task) => ({
+                    id: t.id,
+                    title: t.title,
+                    status: 'todo' as const,
+                    priority: 'medium' as const,
+                    assigneeId: t.assignee || '',
+                  })),
+                  inProgress: tasks.filter((t: Task) => t.priority === 'high').map((t: Task) => ({
+                    id: t.id,
+                    title: t.title,
+                    status: 'in_progress' as const,
+                    priority: 'high' as const,
+                    assigneeId: t.assignee || '',
+                  })),
+                  review: [],
+                  done: []
+                }} />
               </div>
 
               {/* Live Feed */}
               <div className="border border-slate-700 rounded-lg p-4 bg-slate-900/50 backdrop-blur-sm flex flex-col h-96">
-                <LiveFeed events={events} />
+                <LiveFeed events={events.map((e: LiveEvent) => ({
+                  id: e.id,
+                  type: e.type,
+                  timestamp: e.timestamp.toISOString(),
+                  agent_id: 'agent:main:main',
+                  payload: { message: e.message, severity: e.severity }
+                }))} />
               </div>
             </motion.div>
 

@@ -32,7 +32,7 @@ export const OperationsRoom = React.memo(() => {
   // Get state from store using selectors
   const mainAgent = useMainAgent();
   const subAgents = useSubAgents();
-  const taskFlow = useTaskFlow();
+  const { taskFlow } = useTaskFlow();
   const liveFeed = useLiveFeed();
   const connectionStatus = useConnectionStatus();
   const activeSubAgents = useActiveSubAgents();

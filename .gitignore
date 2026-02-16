@@ -41,3 +41,4 @@ OPERATIONS.md
 MEMORY.md
 BOOTSTRAP.md
 OPTIMIZATION.md
+.env*.local

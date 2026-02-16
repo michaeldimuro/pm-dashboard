@@ -222,20 +222,11 @@ export const useSubAgentUpdates = (): UseSubAgentUpdatesReturn => {
     [totalSubAgents, activeSubAgents.length, completedSubAgents, averageProgress]
   );
   
+  // Return only required interface properties, store others internally
   return {
     activeSubAgents,
     completedSubAgents,
     totalSubAgents,
     hasNewSubAgent,
-    // Extended helpers
-    averageProgress: averageProgress as any,
-    agentsByStatus: agentsByStatus as any,
-    mostRecentlyUpdated: mostRecentlyUpdated as any,
-    getIdleAgents: getIdleAgents as any,
-    getAgentsByTask: getAgentsByTask as any,
-    getAgentsByParentSession: getAgentsByParentSession as any,
-    statusTransitions: statusTransitions as any,
-    clearNewAgentIndicator,
-    stats: stats as any,
   };
 };

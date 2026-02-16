@@ -30,16 +30,22 @@ interface OperationEvent {
 interface LogRequest {
   event: OperationEvent;
   timestamp: number;
+  signature?: string;
 }
 
 /**
  * Verify HMAC signature
+ * Reconstructs the signature from event + timestamp to verify authenticity
  */
 async function verifySignature(
-  body: string,
+  event: OperationEvent,
+  timestamp: number,
   signature: string
 ): Promise<boolean> {
   try {
+    // Reconstruct the exact payload that was signed
+    const payload = JSON.stringify({ event, timestamp });
+    
     const encoder = new TextEncoder();
     const key = await subtle.importKey(
       'raw',
@@ -49,7 +55,7 @@ async function verifySignature(
       ['sign']
     );
 
-    const computed = await subtle.sign('HMAC', key, encoder.encode(body));
+    const computed = await subtle.sign('HMAC', key, encoder.encode(payload));
     const computedHex = Array.from(new Uint8Array(computed))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
@@ -86,32 +92,12 @@ export default async function handler(req: Request): Promise<Response> {
   }
 
   try {
-    // Get signature from header
-    const signature = req.headers.get('X-Signature');
-    if (!signature) {
-      console.warn('[Log] Missing signature');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Missing signature' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
     // Get body
     const body = await req.text();
     if (!body) {
       return new Response(
         JSON.stringify({ success: false, error: 'Empty body' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Verify signature
-    const isValid = await verifySignature(body, signature);
-    if (!isValid) {
-      console.warn('[Log] Invalid signature');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Invalid signature' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -124,6 +110,26 @@ export default async function handler(req: Request): Promise<Response> {
       return new Response(
         JSON.stringify({ success: false, error: 'Invalid JSON' }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { event, timestamp, signature } = logRequest;
+
+    if (!signature) {
+      console.warn('[Log] Missing signature');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Missing signature' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify signature
+    const isValid = await verifySignature(event, timestamp, signature);
+    if (!isValid) {
+      console.warn('[Log] Invalid signature');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid signature' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
       );
     }
 

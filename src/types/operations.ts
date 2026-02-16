@@ -38,10 +38,18 @@ export interface Agent {
 }
 
 /**
- * Sub-Agent Interface (extends Agent)
+ * Sub-Agent Interface
  */
-export interface SubAgent extends Agent {
+export interface SubAgent {
+  id: string;
+  name: string;
   status: SubAgentStatus;
+  currentTask: string;
+  assignedTask?: string; // Alias for currentTask for backwards compatibility
+  progress: number; // 0-100
+  startedAt: Date;
+  lastActivityAt: Date;
+  estimatedCompletion?: Date;
   parentSessionId: string;
   sessionId: string;
   completedAt?: Date;
@@ -210,6 +218,7 @@ export interface OperationsHeaderProps {
 export interface StatusBadgeProps {
   status: AgentStatus | SubAgentStatus | TaskStatus;
   size?: 'sm' | 'md' | 'lg';
+  withLabel?: boolean;
   className?: string;
 }
 
