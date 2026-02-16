@@ -55,7 +55,6 @@ export function LeadsPage() {
   const [nextFollowup, setNextFollowup] = useState('');
 
   useEffect(() => {
-    // Wait for authReady to prevent AbortError from race conditions
     if (user) {
       fetchLeads();
     }

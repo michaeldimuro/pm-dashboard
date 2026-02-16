@@ -26,7 +26,6 @@ export function WebhooksPage() {
   const [selectedEvents, setSelectedEvents] = useState<WebhookEventType[]>([]);
 
   useEffect(() => {
-    // Wait for authReady to prevent AbortError from race conditions
     if (user) fetchWebhooks();
   }, [user]);
 

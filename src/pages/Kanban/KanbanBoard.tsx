@@ -105,18 +105,13 @@ export function KanbanBoard() {
 
   useEffect(() => {
     console.log('[Kanban] useEffect triggered:', {
-      user: user ? `${user.full_name} (${user.id})` : 'null',
-      authReady
+      user: user ? `${user.full_name} (${user.id})` : 'null'
     });
     
-    // CRITICAL: Wait for authReady before making any queries
-    // This prevents AbortError from race conditions with auth state changes
     if (user) {
-      console.log('[Kanban] ✓ Auth is ready, fetching projects and tasks...');
+      console.log('[Kanban] ✓ User authenticated, fetching projects and tasks...');
       fetchProjects();
       fetchAllTasks();
-    } else if (user && !authReady) {
-      console.log('[Kanban] User exists but auth not ready yet, waiting...');
     } else {
       console.log('[Kanban] No user yet, waiting...');
     }

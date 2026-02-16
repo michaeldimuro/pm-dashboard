@@ -34,7 +34,6 @@ export function NotesPage() {
   const [noteTags, setNoteTags] = useState('');
 
   useEffect(() => {
-    // Wait for authReady to prevent AbortError from race conditions
     if (user) {
       fetchNotes();
       fetchLinks();

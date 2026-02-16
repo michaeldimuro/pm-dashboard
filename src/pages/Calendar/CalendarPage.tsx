@@ -37,7 +37,6 @@ export function CalendarPage() {
   const [allDay, setAllDay] = useState(false);
 
   useEffect(() => {
-    // Wait for authReady to prevent AbortError from race conditions
     if (user) {
       fetchEvents();
     }

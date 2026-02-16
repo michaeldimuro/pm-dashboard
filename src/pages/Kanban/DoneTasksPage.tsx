@@ -15,7 +15,6 @@ export function DoneTasksPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Wait for authReady to prevent AbortError from race conditions
     if (user) {
       fetchDoneTasks();
     }

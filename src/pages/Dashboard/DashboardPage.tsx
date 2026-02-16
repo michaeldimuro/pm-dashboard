@@ -50,17 +50,12 @@ export function DashboardPage() {
 
   useEffect(() => {
     console.log('[Dashboard] useEffect triggered:', { 
-      user: user ? `${user.full_name} (${user.id})` : 'null',
-      authReady 
+      user: user ? `${user.full_name} (${user.id})` : 'null'
     });
     
-    // CRITICAL: Wait for authReady before making any queries
-    // This prevents AbortError from race conditions with auth state changes
     if (user) {
-      console.log('[Dashboard] ✓ Auth is ready, fetching data...');
+      console.log('[Dashboard] ✓ User authenticated, fetching data...');
       fetchDashboardData();
-    } else if (user && !authReady) {
-      console.log('[Dashboard] User exists but auth not ready yet, waiting...');
     } else {
       console.log('[Dashboard] No user yet, waiting...');
     }
