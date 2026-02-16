@@ -1,374 +1,220 @@
 /**
- * useOperationRoomWebSocket - Manages WebSocket connection lifecycle
- * Handles connection, subscriptions, reconnection, and event dispatching
+ * Operations Room WebSocket Hook
+ * Manages real-time connection to operations gateway
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import type { WebSocketMessage, OperationEvent } from '../types/operations';
+import { useAuth } from '@/contexts/AuthContext';
 import { useOperationsStore } from './useOperationsStore';
+import type { OperationEvent } from '@/types/operations';
 
-interface WebSocketConfig {
-  url?: string;
-  reconnectAttempts?: number;
-  reconnectDelay?: number;
-  heartbeatInterval?: number;
+const WS_URL = process.env.VITE_OPROOM_WS_URL || 'wss://api.dashboard.michaeldimuro.com/api/realtime';
+const RECONNECT_DELAY_MS = 1000;
+const MAX_RECONNECT_DELAY_MS = 30000;
+
+interface WebSocketMessage {
+  channel: string;
+  message_id: string;
+  timestamp: string;
+  data: unknown;
 }
 
-const DEFAULT_CONFIG: Required<WebSocketConfig> = {
-  url:
-    process.env.VITE_OPROOM_WS_URL ||
-    (typeof window !== 'undefined'
-      ? `wss://${window.location.host}/api/realtime`
-      : 'ws://localhost:3000/api/realtime'),
-  reconnectAttempts: 5,
-  reconnectDelay: 1000, // Start at 1s, double each time
-  heartbeatInterval: 30000, // 30 seconds
-};
-
-/**
- * Hook for managing WebSocket connection and event subscription
- */
-export const useOperationRoomWebSocket = (config: WebSocketConfig = {}) => {
-  const finalConfig = { ...DEFAULT_CONFIG, ...config };
+export function useOperationRoomWebSocket() {
+  const { session } = useAuth();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const messageQueueRef = useRef<WebSocketMessage[]>([]);
-  const messageIdSetRef = useRef<Set<string>>(new Set());
-  
-  const reconnectAttemptsRef = useRef(0);
-  const isManuallyClosedRef = useRef(false);
-  
-  const {
-    setConnected,
-    addEvent,
-    updateMainAgent,
-    addSubAgent,
-    removeSubAgent,
-    updateSubAgent,
-    updateTaskFlow,
-  } = useOperationsStore();
-  
-  const [isReady, setIsReady] = useState(false);
+  const reconnectDelayRef = useRef(RECONNECT_DELAY_MS);
+  const [isConnected, setIsConnected] = useState(false);
+
+  const addEvent = useOperationsStore((state) => state.addEvent);
+  const updateMainAgent = useOperationsStore((state) => state.updateMainAgent);
+  const addSubAgent = useOperationsStore((state) => state.addSubAgent);
+  const updateSubAgent = useOperationsStore((state) => state.updateSubAgent);
 
   /**
-   * Handle incoming WebSocket messages
+   * Connect to WebSocket
    */
-  const handleMessage = useCallback(
-    (event: MessageEvent) => {
-      try {
-        const message: WebSocketMessage = JSON.parse(event.data);
-        
-        // Deduplicate by message_id
-        if (messageIdSetRef.current.has(message.message_id)) {
-          return;
-        }
-        messageIdSetRef.current.add(message.message_id);
-        // Keep set size bounded
-        if (messageIdSetRef.current.size > 1000) {
-          messageIdSetRef.current.clear();
-        }
-        
-        // Handle array of events
-        const events = Array.isArray(message.data)
-          ? message.data
-          : [message.data];
-        
-        events.forEach((operationEvent) => {
-          handleOperationEvent(operationEvent);
+  const connect = useCallback(async () => {
+    if (!session?.access_token) {
+      console.warn('[WS] No session, skipping connection');
+      return;
+    }
+
+    try {
+      console.log('[WS] Connecting...');
+      const token = session.access_token;
+      const url = `${WS_URL}?token=${encodeURIComponent(token)}`;
+
+      wsRef.current = new WebSocket(url);
+
+      wsRef.current.onopen = () => {
+        console.log('[WS] Connected');
+        setIsConnected(true);
+        reconnectDelayRef.current = RECONNECT_DELAY_MS;
+
+        // Subscribe to channels
+        sendMessage({
+          channel: 'operations_room',
+          action: 'subscribe',
         });
-      } catch (error) {
-        console.error('[WebSocket] Failed to parse message:', error);
+        sendMessage({
+          channel: 'agent_sessions',
+          action: 'subscribe',
+        });
+      };
+
+      wsRef.current.onmessage = (event: MessageEvent<string>) => {
+        try {
+          const message = JSON.parse(event.data) as WebSocketMessage;
+          handleMessage(message);
+        } catch (err) {
+          console.error('[WS] Parse error:', err);
+        }
+      };
+
+      wsRef.current.onerror = (err) => {
+        console.error('[WS] Error:', err);
+      };
+
+      wsRef.current.onclose = () => {
+        console.log('[WS] Disconnected');
+        setIsConnected(false);
+        wsRef.current = null;
+
+        // Reconnect with exponential backoff
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
+
+        const delay = Math.min(reconnectDelayRef.current, MAX_RECONNECT_DELAY_MS);
+        console.log(`[WS] Reconnecting in ${delay}ms...`);
+
+        reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectDelayRef.current = Math.min(
+            reconnectDelayRef.current * 2,
+            MAX_RECONNECT_DELAY_MS
+          );
+          connect();
+        }, delay);
+      };
+    } catch (err) {
+      console.error('[WS] Connection error:', err);
+      setIsConnected(false);
+    }
+  }, [session?.access_token]);
+
+  /**
+   * Send a message through the WebSocket
+   */
+  const sendMessage = useCallback(
+    (message: {
+      channel: string;
+      action?: string;
+      data?: unknown;
+    }) => {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        console.warn('[WS] Not connected, cannot send message');
+        return;
       }
+
+      wsRef.current.send(
+        JSON.stringify({
+          ...message,
+          message_id: `${Date.now()}-${Math.random()}`,
+          timestamp: new Date().toISOString(),
+        })
+      );
     },
     []
   );
 
   /**
-   * Handle specific operation event types
+   * Handle incoming message
    */
-  const handleOperationEvent = useCallback(
-    (event: OperationEvent) => {
-      // Always add to live feed
-      addEvent(event);
-      
-      // Route by event type
-      const { type, payload } = event;
-      
-      if (type === 'agent.session.started') {
-        updateMainAgent({
-          id: payload.agent_id,
-          name: payload.agent_name,
-          status: 'active',
-          currentTask: payload.initial_task || '',
-          progress: 0,
-          startedAt: new Date(payload.started_at || new Date()),
-        });
-      } else if (type === 'agent.status_updated') {
-        updateMainAgent({
-          status: payload.status,
-          currentTask: payload.current_task,
-          progress: payload.progress_percent || 0,
-          estimatedCompletion: payload.estimated_completion
-            ? new Date(payload.estimated_completion)
-            : undefined,
-          lastActivityAt: new Date(),
-        });
-      } else if (type === 'subagent.spawned') {
-        addSubAgent({
-          id: payload.subagent_id,
-          name: payload.subagent_name,
-          status: 'spawned',
-          currentTask: payload.assigned_task,
-          progress: 0,
-          parentSessionId: payload.session_id,
-          sessionId: payload.session_id,
-          startedAt: new Date(payload.started_at),
-          lastActivityAt: new Date(),
-        });
-      } else if (type === 'agent.work_activity') {
-        // Update the agent's last activity time
-        const agentId = event.agent_id;
-        if (agentId.includes('subagent')) {
-          updateSubAgent(agentId, {
-            lastActivityAt: new Date(),
-          });
-        } else {
-          updateMainAgent({
-            lastActivityAt: new Date(),
-          });
+  const handleMessage = useCallback(
+    (message: WebSocketMessage) => {
+      // System messages
+      if (message.channel === '_system') {
+        const data = message.data as any;
+        if (data.type === 'connected') {
+          console.log('[WS] Welcome:', data.message);
+        } else if (data.type === 'ping') {
+          // Respond to ping
+          sendMessage({ channel: '_system', action: 'ping' });
         }
-      } else if (type === 'agent.status_updated' && payload.status === 'working') {
-        // Update progress if working
-        if (event.agent_id.includes('subagent')) {
-          updateSubAgent(event.agent_id, {
-            status: 'working',
-            progress: payload.progress_percent || 0,
+        return;
+      }
+
+      // Operation events
+      const payload = message.data as any;
+      if (payload.event_type) {
+        const event = payload as OperationEvent;
+        console.log('[WS] Event received:', event.event_type);
+
+        // Add to live feed
+        addEvent(event);
+
+        // Update state based on event type
+        if (event.event_type === 'agent.session.started') {
+          if (event.payload.agent_type === 'main') {
+            updateMainAgent({
+              status: 'active',
+              currentTask: event.payload.initial_task,
+              progress: 0,
+              startedAt: new Date(event.timestamp),
+            });
+          }
+        } else if (event.event_type === 'subagent.spawned') {
+          addSubAgent({
+            id: event.payload.subagent_id,
+            name: event.payload.subagent_name,
+            assignedTask: event.payload.assigned_task,
+            status: 'spawned',
+            progress: 0,
+            startedAt: new Date(event.timestamp),
           });
-        } else {
-          updateMainAgent({
-            status: 'working',
-            progress: payload.progress_percent || 0,
-          });
+        } else if (event.event_type === 'agent.status_updated') {
+          if (event.payload.agent_type === 'main') {
+            updateMainAgent({
+              status: event.payload.status,
+              progress: event.payload.progress_percent,
+            });
+          } else {
+            updateSubAgent(event.agent_id, {
+              status: event.payload.status,
+              progress: event.payload.progress_percent,
+            });
+          }
+        } else if (event.event_type === 'task.state_changed') {
+          // Task state changes will update the task flow store
+          // This is handled by useTaskFlow hook
         }
-      } else if (type === 'subagent.completed') {
-        updateSubAgent(event.agent_id, {
-          status: 'completed',
-          completedAt: new Date(),
-          summary: payload.summary,
-          deliverables: payload.deliverables,
-          progress: 100,
-        });
-      } else if (type === 'subagent.failed') {
-        updateSubAgent(event.agent_id, {
-          status: 'failed',
-          completedAt: new Date(),
-          summary: payload.error_message || 'Task failed',
-        });
-      } else if (type === 'task.state_changed') {
-        // Task flow updates will be handled by a separate service
-        // This is just for logging to live feed
       }
     },
-    [addEvent, updateMainAgent, addSubAgent, updateSubAgent]
+    [addEvent, updateMainAgent, addSubAgent, updateSubAgent, sendMessage]
   );
 
   /**
-   * Connect to WebSocket with exponential backoff
-   */
-  const connect = useCallback(() => {
-    if (isManuallyClosedRef.current) return;
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
-    
-    try {
-      const ws = new WebSocket(finalConfig.url);
-      
-      ws.onopen = () => {
-        console.log('[WebSocket] Connected');
-        setConnected(true);
-        reconnectAttemptsRef.current = 0;
-        messageIdSetRef.current.clear();
-        setIsReady(true);
-        
-        // Drain message queue
-        while (messageQueueRef.current.length > 0) {
-          const msg = messageQueueRef.current.shift();
-          if (msg) ws.send(JSON.stringify(msg));
-        }
-        
-        // Start heartbeat
-        heartbeat();
-      };
-      
-      ws.onmessage = handleMessage;
-      
-      ws.onerror = (error) => {
-        console.error('[WebSocket] Error:', error);
-        setConnected(false, 'WebSocket error');
-      };
-      
-      ws.onclose = () => {
-        console.log('[WebSocket] Disconnected');
-        setConnected(false);
-        setIsReady(false);
-        
-        // Attempt reconnection with exponential backoff
-        if (
-          !isManuallyClosedRef.current &&
-          reconnectAttemptsRef.current < finalConfig.reconnectAttempts
-        ) {
-          const delay =
-            finalConfig.reconnectDelay * Math.pow(2, reconnectAttemptsRef.current);
-          console.log(
-            `[WebSocket] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1})`
-          );
-          reconnectAttemptsRef.current += 1;
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
-          }, delay);
-        }
-      };
-      
-      wsRef.current = ws;
-    } catch (error) {
-      console.error('[WebSocket] Failed to create connection:', error);
-      setConnected(false, 'Failed to create connection');
-    }
-  }, [finalConfig.url, finalConfig.reconnectAttempts, finalConfig.reconnectDelay, setConnected]);
-
-  /**
-   * Send heartbeat ping
-   */
-  const heartbeat = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(
-        JSON.stringify({
-          type: 'ping',
-          timestamp: new Date().toISOString(),
-        })
-      );
-    }
-    
-    heartbeatTimeoutRef.current = setTimeout(
-      heartbeat,
-      finalConfig.heartbeatInterval
-    );
-  }, [finalConfig.heartbeatInterval]);
-
-  /**
-   * Send a message (with queuing if not connected)
-   */
-  const send = useCallback((message: WebSocketMessage) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(message));
-    } else {
-      messageQueueRef.current.push(message);
-      console.warn('[WebSocket] Not connected, message queued');
-    }
-  }, []);
-
-  /**
-   * Subscribe to a channel
-   */
-  const subscribe = useCallback(
-    (channel: string, filters?: Record<string, string>) => {
-      send({
-        channel: channel as any,
-        message_id: crypto.randomUUID?.() || Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        data: {
-          id: 'subscribe',
-          type: 'system',
-          timestamp: new Date().toISOString(),
-          agent_id: 'client',
-          payload: { channel, filters },
-        },
-      });
-    },
-    [send]
-  );
-
-  /**
-   * Unsubscribe from a channel
-   */
-  const unsubscribe = useCallback(
-    (channel: string) => {
-      send({
-        channel: channel as any,
-        message_id: crypto.randomUUID?.() || Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        data: {
-          id: 'unsubscribe',
-          type: 'system',
-          timestamp: new Date().toISOString(),
-          agent_id: 'client',
-          payload: { channel },
-        },
-      });
-    },
-    [send]
-  );
-
-  /**
-   * Close connection manually
-   */
-  const disconnect = useCallback(() => {
-    isManuallyClosedRef.current = true;
-    
-    if (reconnectTimeoutRef.current) {
-      clearTimeout(reconnectTimeoutRef.current);
-    }
-    if (heartbeatTimeoutRef.current) {
-      clearTimeout(heartbeatTimeoutRef.current);
-    }
-    
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-    
-    setConnected(false);
-    setIsReady(false);
-  }, [setConnected]);
-
-  /**
-   * Reconnect (reset and try again)
-   */
-  const reconnect = useCallback(() => {
-    disconnect();
-    isManuallyClosedRef.current = false;
-    reconnectAttemptsRef.current = 0;
-    connect();
-  }, [connect, disconnect]);
-
-  /**
-   * Initialize connection on mount
+   * Setup connection on mount
    */
   useEffect(() => {
-    connect();
-    
+    if (session?.access_token) {
+      connect();
+    }
+
     return () => {
-      isManuallyClosedRef.current = true;
+      // Cleanup on unmount
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
-      }
-      if (heartbeatTimeoutRef.current) {
-        clearTimeout(heartbeatTimeoutRef.current);
       }
       if (wsRef.current) {
         wsRef.current.close();
       }
     };
-  }, [connect]);
+  }, [session?.access_token, connect]);
 
   return {
-    isReady,
-    isConnected: wsRef.current?.readyState === WebSocket.OPEN,
-    send,
-    subscribe,
-    unsubscribe,
-    disconnect,
-    reconnect,
+    isConnected,
+    sendMessage,
   };
-};
+}
