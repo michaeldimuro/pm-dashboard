@@ -10,6 +10,7 @@ import { NotesPage } from './pages/Notes';
 import { LeadsPage } from './pages/Leads';
 import { WebhooksPage } from './pages/Webhooks';
 import { SettingsPage } from './pages/Settings';
+import { OperationsPage } from './pages/Operations/OperationsPage';
 
 function LoadingScreen() {
   return (
@@ -79,6 +80,7 @@ function AppRoutes() {
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/webhooks" element={<WebhooksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/operations" element={<OperationsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

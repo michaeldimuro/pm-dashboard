@@ -55,9 +55,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }, 5000); // 5 second timeout
 
       try {
-        const { data: { session: existingSession }, error } = await supabase.auth.getSession();
+        let { data: { session: existingSession }, error } = await supabase.auth.getSession();
         
         clearTimeout(timeoutId);
+        
+        // If session is null but we have a refresh token, attempt refresh
+        if (!existingSession && error?.status !== 401) {
+          console.log('[Auth] No session found, attempting to refresh...');
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+          
+          if (!refreshError && refreshData.session) {
+            existingSession = refreshData.session;
+            error = null;
+            console.log('[Auth] Token refreshed successfully on init');
+          }
+        }
         
         if (error) {
           console.error('[Auth] Session error:', error);
@@ -70,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         
-        // If no session (null or expired), clear localStorage and let redirect happen
+        // If no session after refresh attempt, clear localStorage and let redirect happen
         if (!existingSession) {
           const authKeys = Object.keys(localStorage).filter(key => 
             key.startsWith('sb-') || key.includes('supabase')
@@ -113,8 +125,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else if (newSession) {
           setSession(newSession);
           setSupabaseUser(newSession.user);
-          // Only fetch profile on SIGNED_IN (not TOKEN_REFRESHED)
-          if (event === 'SIGNED_IN') {
+          // Fetch profile on SIGNED_IN and TOKEN_REFRESHED (keep user data fresh)
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             const profile = await fetchUserProfile(newSession.user.id);
             setUser(profile);
           }
@@ -122,10 +134,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
+    // Set up proactive token refresh (1 minute before expiry)
+    const refreshInterval = setInterval(async () => {
+      if (!session?.expires_at) return;
+      
+      const now = Math.floor(Date.now() / 1000);
+      const timeUntilExpiry = session.expires_at - now;
+      
+      // Refresh if token expires within 60 seconds
+      if (timeUntilExpiry <= 60 && timeUntilExpiry > 0) {
+        console.log(`[Auth] Proactive refresh: token expires in ${timeUntilExpiry}s`);
+        const { data, error } = await supabase.auth.refreshSession();
+        
+        if (error) {
+          console.warn('[Auth] Proactive refresh failed:', error);
+        } else if (data.session) {
+          setSession(data.session);
+          console.log('[Auth] Proactive refresh successful');
+        }
+      }
+    }, 30000); // Check every 30 seconds
+
     return () => {
       subscription.unsubscribe();
+      clearInterval(refreshInterval);
     };
-  }, [fetchUserProfile]);
+  }, [fetchUserProfile, session?.expires_at]);
 
   const signIn = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {

@@ -12,6 +12,7 @@ import {
   ChevronRight,
   LogOut,
   Rocket,
+  MonitorPlay,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -27,6 +28,7 @@ const navItems = [
   { icon: StickyNote, label: 'Notes', path: '/notes' },
   { icon: Users, label: 'Leads', path: '/leads' },
   { icon: Webhook, label: 'Webhooks', path: '/webhooks' },
+  { icon: MonitorPlay, label: 'Operations', path: '/operations' },
   { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 

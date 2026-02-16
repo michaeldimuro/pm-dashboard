@@ -18,14 +18,28 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 // Helper to get auth headers for API calls
-// Returns null if no valid session exists
+// Automatically refreshes token if expired
+// Returns null if no valid session exists or refresh fails
 export const getAuthHeaders = async (): Promise<Record<string, string> | null> => {
   try {
-    const { data: { session }, error } = await supabase.auth.getSession();
+    let { data: { session }, error } = await supabase.auth.getSession();
     
     if (error) {
       console.error('[Supabase] Error getting session for headers:', error);
       return null;
+    }
+    
+    // No session - try refresh
+    if (!session) {
+      console.log('[Supabase] No session in getAuthHeaders, attempting refresh');
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      
+      if (refreshError || !refreshData.session) {
+        console.warn('[Supabase] Refresh failed, need to sign in');
+        return null;
+      }
+      
+      session = refreshData.session;
     }
     
     if (!session?.access_token) {
@@ -33,12 +47,12 @@ export const getAuthHeaders = async (): Promise<Record<string, string> | null> =
       return null;
     }
     
-    // Check if token is expired
+    // Check if token is expired or expiring soon (within 5 seconds)
     const expiresAt = session.expires_at;
     const now = Math.floor(Date.now() / 1000);
     
-    if (expiresAt && now >= expiresAt) {
-      console.log('[Supabase] Token expired, attempting refresh');
+    if (expiresAt && now >= expiresAt - 5) {
+      console.log('[Supabase] Token expired or expiring soon, attempting refresh');
       const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
       
       if (refreshError || !refreshData.session) {
@@ -46,10 +60,8 @@ export const getAuthHeaders = async (): Promise<Record<string, string> | null> =
         return null;
       }
       
-      return {
-        Authorization: `Bearer ${refreshData.session.access_token}`,
-        'Content-Type': 'application/json',
-      };
+      session = refreshData.session;
+      console.log('[Supabase] Token refreshed successfully');
     }
     
     return {
