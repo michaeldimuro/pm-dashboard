@@ -49,14 +49,20 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('[Dashboard] useEffect triggered, user:', user ? `${user.full_name} (${user.id})` : 'null');
+    
     if (user) {
+      console.log('[Dashboard] User exists, fetching data...');
       fetchDashboardData();
+    } else {
+      console.log('[Dashboard] No user yet, waiting...');
     }
     
     // Safety timeout: if dashboard doesn't load within 10 seconds, stop loading
     const timeout = setTimeout(() => {
       if (loading) {
-        console.warn('[Dashboard] Loading timeout, stopping loading state');
+        console.warn('[Dashboard] ⚠️ Loading timeout (10s), stopping loading state');
+        console.warn('[Dashboard] User state at timeout:', user ? 'exists' : 'null');
         setLoading(false);
       }
     }, 10000);

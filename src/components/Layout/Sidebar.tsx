@@ -34,6 +34,8 @@ const navItems = [
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { user, signOut } = useAuth();
+  
+  console.log('[Sidebar] Rendering with user:', user ? `${user.full_name} (${user.email})` : 'null');
 
   return (
     <aside

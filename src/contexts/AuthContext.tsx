@@ -117,7 +117,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     initializationAttempted.current = true;
 
     const initialize = async () => {
-      console.log('[Auth] Initializing auth context...');
+      console.log('[Auth] ========== INITIALIZATION START ==========');
+      console.log('[Auth] Location:', window.location.pathname);
+      console.log('[Auth] LocalStorage keys:', Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('sb-')));
       
       try {
         // Attempt 1: Get current session
@@ -125,6 +127,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         console.log('[Auth] Initial session check:', {
           hasSession: !!currentSession,
+          userId: currentSession?.user?.id,
+          email: currentSession?.user?.email,
+          expiresAt: currentSession?.expires_at,
           isValid: isSessionValid(currentSession),
           error: error?.message,
         });
@@ -179,46 +184,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         // Valid session established!
-        console.log('[Auth] Valid session established');
+        console.log('[Auth] ✓ Valid session established');
+        console.log('[Auth] Setting session state...');
         setSession(currentSession);
         setSupabaseUser(currentSession.user);
+        console.log('[Auth] Session state set');
         
-        // Fetch user profile (non-blocking - system works even if this fails)
+        // Create fallback user FIRST (so we always have a user)
+        const fallbackUser: User = {
+          id: currentSession.user.id,
+          email: currentSession.user.email || '',
+          full_name: currentSession.user.user_metadata?.full_name || 
+                    currentSession.user.email?.split('@')[0] || 
+                    'User',
+          created_at: currentSession.user.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as User;
+        
+        console.log('[Auth] Setting fallback user:', fallbackUser.full_name);
+        setUser(fallbackUser);
+        console.log('[Auth] Fallback user set');
+        
+        // Try to fetch full profile (non-blocking - already have fallback)
+        console.log('[Auth] Attempting to fetch full profile from database...');
         try {
           const profile = await fetchUserProfile(currentSession.user.id);
           if (profile) {
+            console.log('[Auth] ✓ Profile fetched from database:', profile.full_name);
             setUser(profile);
           } else {
-            console.warn('[Auth] No user profile found in database, creating from auth user');
-            // Fallback: create basic user object from Supabase auth user
-            setUser({
-              id: currentSession.user.id,
-              email: currentSession.user.email || '',
-              full_name: currentSession.user.user_metadata?.full_name || 
-                        currentSession.user.email?.split('@')[0] || 
-                        'User',
-              created_at: currentSession.user.created_at || new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            } as User);
+            console.log('[Auth] No profile in database, using fallback');
           }
         } catch (err) {
-          console.error('[Auth] Profile fetch failed, using fallback:', err);
-          // Even if profile fetch fails, create fallback user so app doesn't hang
-          setUser({
-            id: currentSession.user.id,
-            email: currentSession.user.email || '',
-            full_name: currentSession.user.user_metadata?.full_name || 
-                      currentSession.user.email?.split('@')[0] || 
-                      'User',
-            created_at: currentSession.user.created_at || new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          } as User);
+          console.error('[Auth] Profile fetch failed (using fallback):', err);
         }
         
         // Schedule proactive refresh
+        console.log('[Auth] Scheduling token refresh...');
         scheduleTokenRefresh(currentSession);
         
+        console.log('[Auth] Setting loading = false');
         setLoading(false);
+        console.log('[Auth] ========== INITIALIZATION COMPLETE ==========');
         
       } catch (err) {
         console.error('[Auth] Initialization exception:', err);
