@@ -7,6 +7,30 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
+// Debug wrapper for fetch to track what's happening with requests
+const debugFetch: typeof fetch = async (input, init) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+  const shortUrl = url.replace(supabaseUrl || '', '');
+  
+  console.log(`[Fetch] START: ${shortUrl}`);
+  
+  // Remove the signal to prevent abort issues (temporary debug measure)
+  const cleanInit = init ? { ...init } : {};
+  if (cleanInit.signal) {
+    console.log(`[Fetch] Signal present on ${shortUrl}, removing to test...`);
+    delete cleanInit.signal;
+  }
+  
+  try {
+    const response = await fetch(input, cleanInit);
+    console.log(`[Fetch] SUCCESS: ${shortUrl} - ${response.status}`);
+    return response;
+  } catch (error) {
+    console.error(`[Fetch] ERROR: ${shortUrl}`, error);
+    throw error;
+  }
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
@@ -25,6 +49,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     headers: {
       'X-Client-Info': 'mission-control-dashboard',
     },
+    // Use our debug fetch wrapper
+    fetch: debugFetch,
   },
 });
 

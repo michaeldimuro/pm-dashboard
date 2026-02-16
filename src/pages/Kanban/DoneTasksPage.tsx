@@ -9,16 +9,17 @@ import type { Task } from '@/types';
 import { ASSIGNEES } from '@/types';
 
 export function DoneTasksPage() {
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   const { getBusinessName, getBusinessColor } = useBusiness();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
+    // Wait for authReady to prevent AbortError from race conditions
+    if (user && authReady) {
       fetchDoneTasks();
     }
-  }, [user]);
+  }, [user, authReady]);
 
   const fetchDoneTasks = async () => {
     setLoading(true);

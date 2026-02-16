@@ -58,7 +58,7 @@ interface RejectionState {
 
 export function KanbanBoard() {
   const { currentBusiness, businesses, getBusinessName } = useBusiness();
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | 'all'>('all');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -104,15 +104,23 @@ export function KanbanBoard() {
   );
 
   useEffect(() => {
-    console.log('[Kanban] useEffect triggered, user:', user ? `${user.full_name} (${user.id})` : 'null');
-    if (user) {
-      console.log('[Kanban] User exists, fetching projects and tasks...');
+    console.log('[Kanban] useEffect triggered:', {
+      user: user ? `${user.full_name} (${user.id})` : 'null',
+      authReady
+    });
+    
+    // CRITICAL: Wait for authReady before making any queries
+    // This prevents AbortError from race conditions with auth state changes
+    if (user && authReady) {
+      console.log('[Kanban] ✓ Auth is ready, fetching projects and tasks...');
       fetchProjects();
       fetchAllTasks();
+    } else if (user && !authReady) {
+      console.log('[Kanban] User exists but auth not ready yet, waiting...');
     } else {
       console.log('[Kanban] No user yet, waiting...');
     }
-  }, [user]);
+  }, [user, authReady]);
 
   const fetchProjects = async () => {
     // Fetch all projects across all businesses

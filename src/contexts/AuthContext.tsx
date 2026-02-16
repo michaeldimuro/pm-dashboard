@@ -8,6 +8,7 @@ interface AuthContextType {
   supabaseUser: SupabaseUser | null;
   session: Session | null;
   loading: boolean;
+  authReady: boolean; // True when auth is FULLY stable and queries are safe
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
 }
@@ -19,8 +20,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false); // Becomes true only after auth is FULLY stable
   const initializationAttempted = useRef(false);
   const refreshTimeoutRef = useRef<number | null>(null);
+  const authReadyTimeoutRef = useRef<number | null>(null);
 
   // Fetch user profile from database
   const fetchUserProfile = useCallback(async (userId: string): Promise<User | null> => {
@@ -215,6 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSupabaseUser(null);
           setUser(null);
           setLoading(false);
+          setAuthReady(true); // Auth is ready (no session, but stable)
           return;
         }
         
@@ -283,6 +287,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         console.log('[Auth] Setting loading = false');
         setLoading(false);
+        
+        // Set authReady after a small delay to ensure all state is stable
+        // This prevents race conditions between auth state changes and data queries
+        console.log('[Auth] Scheduling authReady signal in 500ms...');
+        authReadyTimeoutRef.current = setTimeout(() => {
+          console.log('[Auth] ✓ Setting authReady = true (queries are now safe)');
+          setAuthReady(true);
+        }, 500);
+        
         console.log('[Auth] ========== INITIALIZATION COMPLETE ==========');
         
       } catch (err) {
@@ -311,6 +324,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       abortController.abort();
       if (refreshTimeoutRef.current) {
         clearTimeout(refreshTimeoutRef.current);
+      }
+      if (authReadyTimeoutRef.current) {
+        clearTimeout(authReadyTimeoutRef.current);
       }
     };
   }, [isSessionValid, fetchUserProfile, scheduleTokenRefresh, clearAuthStorage]);
@@ -346,7 +362,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.warn('[Auth] Profile fetch failed on refresh:', err);
           }
         } else if (event === 'SIGNED_IN' && newSession) {
-          console.log('[Auth] User signed in');
+          console.log('[Auth] User signed in via onAuthStateChange');
+          
+          // Skip if initialization already handled this (to avoid race conditions)
+          // The init flow already set authReady, so we don't need to do it again
+          if (initializationAttempted.current) {
+            console.log('[Auth] Already initialized, skipping duplicate SIGNED_IN handling');
+            // Just update session in case it changed
+            setSession(newSession);
+            setSupabaseUser(newSession.user);
+            scheduleTokenRefresh(newSession);
+            return;
+          }
           
           // Small delay to let session fully stabilize before making queries
           await new Promise(resolve => setTimeout(resolve, 100));
@@ -453,7 +480,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, supabaseUser, session, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, supabaseUser, session, loading, authReady, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

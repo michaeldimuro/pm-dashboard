@@ -35,7 +35,7 @@ interface BusinessStats {
 
 export function DashboardPage() {
   const { businesses, getBusinessName, getBusinessColor } = useBusiness();
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   const [stats, setStats] = useState<Stats>({
     totalTasks: 0,
     completedTasks: 0,
@@ -49,11 +49,18 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('[Dashboard] useEffect triggered, user:', user ? `${user.full_name} (${user.id})` : 'null');
+    console.log('[Dashboard] useEffect triggered:', { 
+      user: user ? `${user.full_name} (${user.id})` : 'null',
+      authReady 
+    });
     
-    if (user) {
-      console.log('[Dashboard] User exists, fetching data...');
+    // CRITICAL: Wait for authReady before making any queries
+    // This prevents AbortError from race conditions with auth state changes
+    if (user && authReady) {
+      console.log('[Dashboard] ✓ Auth is ready, fetching data...');
       fetchDashboardData();
+    } else if (user && !authReady) {
+      console.log('[Dashboard] User exists but auth not ready yet, waiting...');
     } else {
       console.log('[Dashboard] No user yet, waiting...');
     }
@@ -62,13 +69,13 @@ export function DashboardPage() {
     const timeout = setTimeout(() => {
       if (loading) {
         console.warn('[Dashboard] ⚠️ Loading timeout (10s), stopping loading state');
-        console.warn('[Dashboard] User state at timeout:', user ? 'exists' : 'null');
+        console.warn('[Dashboard] State at timeout:', { user: !!user, authReady });
         setLoading(false);
       }
     }, 10000);
     
     return () => clearTimeout(timeout);
-  }, [user, loading]);
+  }, [user, authReady, loading]);
 
   const fetchDashboardData = async () => {
     console.log('[Dashboard] fetchDashboardData called, user.id:', user?.id);
