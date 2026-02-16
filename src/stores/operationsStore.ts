@@ -5,7 +5,6 @@
 
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { shallow } from 'zustand/shallow';
 import type {
   OperationsRoomState,
   Agent,
@@ -186,36 +185,9 @@ export const useCompletedSubAgents = () =>
 
 /**
  * Combined selector for OperationsRoom component
- * Prevents multiple hook calls that can cause hooks ordering violations
- * Uses shallow equality to prevent unnecessary re-renders
+ * NOTE: This is now deprecated - use individual selectors in the component instead
+ * to avoid React external store caching issues. See OperationsRoom.tsx for the pattern.
  */
-export const useOperationsRoomData = () => {
-  const data = useOperationsStore(
-    (state) => ({
-      mainAgent: state.mainAgent,
-      subAgents: state.subAgents,
-      taskFlow: state.taskFlow,
-      liveFeed: state.liveFeed,
-      isConnected: state.isConnected,
-      connectionError: state.connectionError,
-      subAgentCount: Object.keys(state.subAgents).length,
-    }),
-    shallow
-  );
-
-  // Return with connectionStatus as a stable object
-  return {
-    mainAgent: data.mainAgent,
-    subAgents: data.subAgents,
-    taskFlow: data.taskFlow,
-    liveFeed: data.liveFeed,
-    connectionStatus: {
-      isConnected: data.isConnected,
-      error: data.connectionError,
-    },
-    subAgentCount: data.subAgentCount,
-  };
-};
 
 /**
  * Batch updates utility
