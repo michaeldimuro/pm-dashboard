@@ -56,8 +56,8 @@ export const StatusBadge = React.memo<StatusBadgeProps>(
     className = '',
   }) => {
     // Normalize status for lookup (handle in_progress vs inProgress)
-    const normalizedStatus = status.toLowerCase().replace(/_/g, '_') as keyof typeof STATUS_CONFIG;
-    const config = STATUS_CONFIG[normalizedStatus as any] || STATUS_CONFIG.idle;
+    const normalizedStatus = status.toLowerCase().replace(/_/g, '_');
+    const config = (STATUS_CONFIG as any)[normalizedStatus] || STATUS_CONFIG.idle;
     const sizeConfig = SIZE_CONFIG[size];
     
     return (

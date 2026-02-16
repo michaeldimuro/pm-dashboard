@@ -7,18 +7,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { animationVariants } from '@/lib/animations';
 import { SubAgentPanel } from './SubAgentPanel';
-
-interface SubAgent {
-  id: string;
-  name: string;
-  assignedTask: string;
-  status: 'spawned' | 'active' | 'idle' | 'working' | 'completed' | 'failed';
-  progress: number;
-  startedAt: Date;
-  estimatedCompletion?: Date;
-  completedAt?: Date;
-  summary?: string;
-}
+import type { SubAgent } from '@/types/operations';
 
 interface SubAgentGridProps {
   agents: SubAgent[];

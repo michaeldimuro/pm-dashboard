@@ -14,6 +14,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
     // Storage key prefix to isolate auth data
     storageKey: 'sb-pm-dashboard-auth',
+    // Disable auto-refresh on focus (we handle it manually with better logic)
+    flowType: 'pkce',
+    // Use localStorage explicitly (not automatic detection)
+    storage: window.localStorage,
+    // Debug mode for better error visibility
+    debug: import.meta.env.DEV,
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'mission-control-dashboard',
+    },
   },
 });
 

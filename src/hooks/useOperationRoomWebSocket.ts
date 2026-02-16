@@ -150,7 +150,7 @@ export function useOperationRoomWebSocket() {
       // Operation events
       const payload = message.data as Record<string, unknown>;
       if (payload.type) {
-        const event = payload as OperationEvent;
+        const event = payload as unknown as OperationEvent;
         console.log('[WS] Event received:', event.type);
 
         // Add to live feed

@@ -166,7 +166,7 @@ export const animationVariants = {
     animate: {
       backgroundPosition: ['0% 0%', '100% 0%', '0% 0%'],
     },
-    transition: { duration: 3, repeat: Infinity, ease: 'linear' },
+    transition: { duration: 3, repeat: Infinity, ease: 'linear' as const },
   },
 };
 

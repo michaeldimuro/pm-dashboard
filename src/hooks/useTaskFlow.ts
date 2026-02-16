@@ -41,8 +41,8 @@ export const useTaskFlow = (): UseTaskFlowExtended => {
       if (fromStatus === toStatus) return;
       
       // Get the task arrays - handle both camelCase and snake_case
-      const fromStatusKey = fromStatus === 'in_progress' ? 'inProgress' : fromStatus as keyof TaskFlow;
-      const toStatusKey = toStatus === 'in_progress' ? 'inProgress' : toStatus as keyof TaskFlow;
+      const fromStatusKey = (fromStatus === 'in_progress' ? 'inProgress' : fromStatus) as keyof TaskFlow;
+      const toStatusKey = (toStatus === 'in_progress' ? 'inProgress' : toStatus) as keyof TaskFlow;
       
       const tasks = taskFlow[fromStatusKey];
       const taskIndex = tasks.findIndex((t: Task) => t.id === taskId);
@@ -78,7 +78,8 @@ export const useTaskFlow = (): UseTaskFlowExtended => {
    */
   const getTasksByStatus = useCallback(
     (status: TaskStatus): Task[] => {
-      return taskFlow[status] || [];
+      const statusKey = (status === 'in_progress' ? 'inProgress' : status) as keyof TaskFlow;
+      return taskFlow[statusKey] || [];
     },
     [taskFlow]
   );

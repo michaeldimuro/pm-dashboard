@@ -67,7 +67,7 @@ export const SubAgentPanel = React.memo<SubAgentPanelProps>(
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
             <h4 className="font-bold text-white truncate">{agent.name}</h4>
-            <p className="text-xs text-slate-400 truncate">{agent.assignedTask}</p>
+            <p className="text-xs text-slate-400 truncate">{agent.currentTask || agent.assignedTask}</p>
           </div>
           <StatusBadge
             status={agent.status}

@@ -61,7 +61,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
               ? {
                   duration: 2,
                   repeat: Infinity,
-                  ease: 'linear',
+                  ease: 'linear' as const,
                 }
               : {}
           }
