@@ -1,18 +1,191 @@
 /**
  * OperationsRoom - Main component for real-time agent activity visualization
- * Displays agent status, sub-agents, task flow, and live event feed
+ * Left: Pixel Office canvas | Right: Agent info panel
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useOperationRoomWebSocket } from '@/hooks/useOperationRoomWebSocket';
 import { useOperationsStore } from '@/stores/operationsStore';
 import { OperationsHeader } from './OperationsHeader';
-import { MainAgentPanel } from './MainAgentPanel';
-import { SubAgentGrid } from './SubAgentGrid';
-import { TaskFlowKanban } from './TaskFlowKanban';
-import { LiveFeed } from './LiveFeed';
-import { ParticleEffectsCanvas } from './ParticleEffectsCanvas';
 import { PixelOffice } from './PixelOffice';
+import { LiveFeed } from './LiveFeed';
+import type { Agent, SubAgent } from '@/types/operations';
+
+/**
+ * Agent Info Panel - Shows details for selected agent
+ */
+interface AgentInfoPanelProps {
+  selectedAgent: Agent | SubAgent | null;
+  mainAgent: Agent | null;
+  subAgents: Record<string, SubAgent>;
+  onSelectAgent: (id: string | null) => void;
+}
+
+const AgentInfoPanel: React.FC<AgentInfoPanelProps> = ({
+  selectedAgent,
+  mainAgent,
+  subAgents,
+  onSelectAgent,
+}) => {
+  const allAgents = useMemo(() => {
+    const agents: (Agent | SubAgent)[] = [];
+    if (mainAgent) agents.push(mainAgent);
+    agents.push(...Object.values(subAgents));
+    return agents;
+  }, [mainAgent, subAgents]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'working':
+      case 'active':
+        return 'text-green-400 bg-green-400/20';
+      case 'idle':
+        return 'text-yellow-400 bg-yellow-400/20';
+      case 'completed':
+        return 'text-blue-400 bg-blue-400/20';
+      case 'failed':
+        return 'text-red-400 bg-red-400/20';
+      default:
+        return 'text-gray-400 bg-gray-400/20';
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-slate-900/95 rounded-xl border border-slate-700 overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 bg-slate-800 border-b border-slate-700">
+        <h2 className="text-lg font-bold text-white flex items-center gap-2">
+          <span>🦞</span>
+          <span>Agent Details</span>
+        </h2>
+      </div>
+
+      {/* Selected Agent Details */}
+      <div className="p-4 border-b border-slate-700">
+        {selectedAgent ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl flex items-center justify-center text-2xl shadow-lg">
+                  🦞
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    {selectedAgent.name === 'Xandus' ? 'Xandus' : selectedAgent.name}
+                  </h3>
+                  <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(selectedAgent.status)}`}>
+                    {selectedAgent.status.toUpperCase()}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => onSelectAgent(null)}
+                className="text-gray-400 hover:text-white p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Current Task */}
+            {selectedAgent.currentTask && (
+              <div className="bg-slate-800 rounded-lg p-3">
+                <div className="text-xs text-gray-400 mb-1">Current Task</div>
+                <div className="text-sm text-white">{selectedAgent.currentTask}</div>
+              </div>
+            )}
+
+            {/* Progress Bar */}
+            {selectedAgent.progress > 0 && (
+              <div>
+                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                  <span>Progress</span>
+                  <span>{selectedAgent.progress}%</span>
+                </div>
+                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 transition-all duration-500"
+                    style={{ width: `${selectedAgent.progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Timestamps */}
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="bg-slate-800 rounded p-2">
+                <div className="text-gray-400">Started</div>
+                <div className="text-white font-mono">
+                  {selectedAgent.startedAt?.toLocaleTimeString() || 'N/A'}
+                </div>
+              </div>
+              <div className="bg-slate-800 rounded p-2">
+                <div className="text-gray-400">Last Active</div>
+                <div className="text-white font-mono">
+                  {selectedAgent.lastActivityAt?.toLocaleTimeString() || 'Now'}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-400">
+            <div className="text-4xl mb-2">👆</div>
+            <p>Click on a lobster to see details</p>
+          </div>
+        )}
+      </div>
+
+      {/* Agent List */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <h3 className="text-sm font-semibold text-gray-400 mb-3 flex items-center gap-2">
+          <span>📋</span>
+          <span>Active Agents ({allAgents.length})</span>
+        </h3>
+        
+        {allAgents.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <div className="text-3xl mb-2">😴</div>
+            <p className="text-sm">No active agents</p>
+            <p className="text-xs mt-1">Waiting for agents to come online...</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {allAgents.map((agent) => (
+              <button
+                key={agent.id}
+                onClick={() => onSelectAgent(agent.id)}
+                className={`w-full text-left p-3 rounded-lg transition-all ${
+                  selectedAgent?.id === agent.id
+                    ? 'bg-cyan-500/20 border border-cyan-500'
+                    : 'bg-slate-800 hover:bg-slate-700 border border-transparent'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🦞</span>
+                    <span className="font-medium text-white">{agent.name}</span>
+                    {'parentSessionId' in agent ? null : (
+                      <span className="text-xs px-1.5 py-0.5 bg-purple-500/30 text-purple-300 rounded">
+                        MAIN
+                      </span>
+                    )}
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(agent.status)}`}>
+                    {agent.status}
+                  </span>
+                </div>
+                {agent.currentTask && (
+                  <div className="text-xs text-gray-400 mt-1 truncate">
+                    {agent.currentTask}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 /**
  * OperationsRoom - Main container component
@@ -21,19 +194,25 @@ export const OperationsRoom = React.memo(() => {
   // Initialize WebSocket connection
   const wsState = useOperationRoomWebSocket();
   
-  // View mode toggle
-  const [viewMode, setViewMode] = useState<'pixel' | 'panels'>('pixel');
+  // Selected agent for info panel
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   
-  // Get state from store using individual selectors (prevents getSnapshot caching issues)
+  // Get state from store using individual selectors
   const mainAgent = useOperationsStore((state) => state.mainAgent);
   const subAgents = useOperationsStore((state) => state.subAgents);
-  const taskFlow = useOperationsStore((state) => state.taskFlow);
   const liveFeed = useOperationsStore((state) => state.liveFeed);
   const isConnected = useOperationsStore((state) => state.isConnected);
   const connectionError = useOperationsStore((state) => state.connectionError);
   const subAgentCount = Object.keys(subAgents).length;
   
-  // Memoize connectionStatus to prevent unnecessary re-renders
+  // Get selected agent
+  const selectedAgent = useMemo(() => {
+    if (!selectedAgentId) return null;
+    if (mainAgent?.id === selectedAgentId) return mainAgent;
+    return subAgents[selectedAgentId] || null;
+  }, [selectedAgentId, mainAgent, subAgents]);
+  
+  // Memoize connectionStatus
   const connectionStatus = useMemo(
     () => ({ isConnected, error: connectionError }),
     [isConnected, connectionError]
@@ -46,7 +225,6 @@ export const OperationsRoom = React.memo(() => {
     const now = new Date().getTime();
     const oneSecondAgo = now - 1000;
     
-    // Count events in last second
     const recentEvents = liveFeed.filter((event) => {
       try {
         const eventTime = new Date(event.timestamp).getTime();
@@ -61,12 +239,19 @@ export const OperationsRoom = React.memo(() => {
   
   // Log mount/unmount
   useEffect(() => {
-    console.log('[OperationsRoom] Mounted, WebSocket initialized');
+    console.log('[OperationsRoom] Mounted');
+    console.log('[OperationsRoom] mainAgent:', mainAgent);
+    console.log('[OperationsRoom] subAgents:', subAgents);
     
     return () => {
       console.log('[OperationsRoom] Unmounted');
     };
-  }, []);
+  }, [mainAgent, subAgents]);
+  
+  // Handle agent selection from pixel office
+  const handleAgentSelect = (agentId: string | null) => {
+    setSelectedAgentId(agentId);
+  };
   
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-hidden flex flex-col">
@@ -77,70 +262,30 @@ export const OperationsRoom = React.memo(() => {
         eventRate={eventRate}
       />
       
-      {/* View Mode Toggle */}
-      <div className="flex justify-center items-center gap-2 py-4 px-6 bg-slate-900/50 border-b border-slate-700">
-        <span className="text-sm text-slate-400 font-mono">View Mode:</span>
-        <div className="flex gap-2 bg-slate-800 rounded-lg p-1">
-          <button
-            onClick={() => setViewMode('pixel')}
-            className={`px-4 py-2 rounded-md text-sm font-mono transition-all ${
-              viewMode === 'pixel'
-                ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/50'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            🎮 Pixel Office
-          </button>
-          <button
-            onClick={() => setViewMode('panels')}
-            className={`px-4 py-2 rounded-md text-sm font-mono transition-all ${
-              viewMode === 'panels'
-                ? 'bg-cyan-500 text-white shadow-lg shadow-cyan-500/50'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            📊 Panels
-          </button>
-        </div>
-      </div>
-      
-      {/* Debug: Show data status (always show for debugging) */}
-      <div className="bg-gray-800 text-xs font-mono p-2 text-gray-400 border-b border-gray-700">
-        <span className="text-cyan-400">DEBUG:</span> mainAgent: {mainAgent?.name || 'null'} | subAgents: {subAgentCount} | events: {liveFeed.length} | connected: {connectionStatus.isConnected ? 'yes' : 'no'}
-      </div>
-      
-      {/* Main content area */}
-      {viewMode === 'pixel' ? (
-        <div className="flex-1 overflow-hidden p-6">
-          <PixelOffice />
-        </div>
-      ) : (
-        <div className="flex-1 overflow-y-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
-            {/* Left: Main Agent Panel */}
-            <div className="lg:col-span-1">
-              <MainAgentPanel agent={mainAgent} />
-            </div>
-            
-            {/* Right: Sub-Agents Grid + Task Flow */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Sub-Agents Grid */}
-              <SubAgentGrid agents={Object.values(subAgents)} />
-              
-              {/* Task Flow Kanban */}
-              <TaskFlowKanban taskFlow={taskFlow} />
-            </div>
+      {/* Main content: 2-column layout */}
+      <div className="flex-1 flex overflow-hidden p-4 gap-4">
+        {/* Left: Pixel Office (contained size) */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex-1 relative rounded-xl overflow-hidden border border-slate-700 bg-slate-900">
+            <PixelOffice onAgentSelect={handleAgentSelect} selectedAgentId={selectedAgentId} />
           </div>
           
-          {/* Bottom: Live Feed */}
-          <div className="px-6 pb-6">
-            <LiveFeed events={liveFeed} />
+          {/* Live Feed below canvas */}
+          <div className="mt-4 h-48 overflow-hidden">
+            <LiveFeed events={liveFeed.slice(0, 10)} compact />
           </div>
         </div>
-      )}
-      
-      {/* Particle Effects Overlay (only in panels mode) */}
-      {viewMode === 'panels' && <ParticleEffectsCanvas />}
+        
+        {/* Right: Agent Info Panel */}
+        <div className="w-80 flex-shrink-0">
+          <AgentInfoPanel
+            selectedAgent={selectedAgent}
+            mainAgent={mainAgent}
+            subAgents={subAgents}
+            onSelectAgent={handleAgentSelect}
+          />
+        </div>
+      </div>
       
       {/* Connection error notification */}
       {!connectionStatus.isConnected && connectionStatus.error && (

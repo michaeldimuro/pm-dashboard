@@ -40,12 +40,20 @@ export interface OfficeLayout {
 }
 
 /**
- * Create default office layout
+ * Create default office layout with customizable dimensions
  */
-export function createDefaultOfficeLayout(): OfficeLayout {
+export function createDefaultOfficeLayout(
+  width: number = 640,
+  height: number = 480
+): OfficeLayout {
   const TILE_SIZE = 32;
-  const OFFICE_WIDTH = 800;
-  const OFFICE_HEIGHT = 600;
+  const OFFICE_WIDTH = width;
+  const OFFICE_HEIGHT = height;
+  
+  // Scale factor based on default 800x600
+  const scaleX = width / 800;
+  const scaleY = height / 600;
+  const scale = Math.min(scaleX, scaleY);
 
   return {
     width: OFFICE_WIDTH,
@@ -66,7 +74,7 @@ export function createDefaultOfficeLayout(): OfficeLayout {
       // Main agent workstation (center, prominent)
       {
         id: 'main-1',
-        position: { x: 350, y: 250 },
+        position: { x: Math.floor(350 * scaleX), y: Math.floor(200 * scaleY) },
         type: 'main',
         occupied: false,
       },
@@ -74,25 +82,25 @@ export function createDefaultOfficeLayout(): OfficeLayout {
       // Sub-agent workstations (arranged around the room)
       {
         id: 'sub-1',
-        position: { x: 150, y: 150 },
+        position: { x: Math.floor(120 * scaleX), y: Math.floor(120 * scaleY) },
         type: 'sub',
         occupied: false,
       },
       {
         id: 'sub-2',
-        position: { x: 550, y: 150 },
+        position: { x: Math.floor(500 * scaleX), y: Math.floor(120 * scaleY) },
         type: 'sub',
         occupied: false,
       },
       {
         id: 'sub-3',
-        position: { x: 150, y: 400 },
+        position: { x: Math.floor(120 * scaleX), y: Math.floor(320 * scaleY) },
         type: 'sub',
         occupied: false,
       },
       {
         id: 'sub-4',
-        position: { x: 550, y: 400 },
+        position: { x: Math.floor(500 * scaleX), y: Math.floor(320 * scaleY) },
         type: 'sub',
         occupied: false,
       },
@@ -100,13 +108,13 @@ export function createDefaultOfficeLayout(): OfficeLayout {
       // Additional idle stations
       {
         id: 'idle-1',
-        position: { x: 100, y: 280 },
+        position: { x: Math.floor(80 * scaleX), y: Math.floor(220 * scaleY) },
         type: 'idle',
         occupied: false,
       },
       {
         id: 'idle-2',
-        position: { x: 600, y: 280 },
+        position: { x: Math.floor(540 * scaleX), y: Math.floor(220 * scaleY) },
         type: 'idle',
         occupied: false,
       },
@@ -114,49 +122,42 @@ export function createDefaultOfficeLayout(): OfficeLayout {
     
     furniture: [
       // Main desk
-      { type: 'desk', position: { x: 340, y: 260 }, width: 80, height: 50 },
-      { type: 'chair', position: { x: 355, y: 290 }, width: 30, height: 30 },
-      { type: 'monitor', position: { x: 360, y: 240 }, width: 40, height: 30 },
+      { type: 'desk', position: { x: Math.floor(320 * scaleX), y: Math.floor(210 * scaleY) }, width: Math.floor(70 * scale), height: Math.floor(45 * scale) },
+      { type: 'chair', position: { x: Math.floor(335 * scaleX), y: Math.floor(240 * scaleY) }, width: Math.floor(25 * scale), height: Math.floor(25 * scale) },
+      { type: 'monitor', position: { x: Math.floor(340 * scaleX), y: Math.floor(195 * scaleY) }, width: Math.floor(35 * scale), height: Math.floor(25 * scale) },
       
-      // Sub-agent desks
-      { type: 'desk', position: { x: 140, y: 160 }, width: 60, height: 40 },
-      { type: 'chair', position: { x: 152, y: 185 }, width: 25, height: 25 },
-      { type: 'monitor', position: { x: 155, y: 145 }, width: 30, height: 25 },
+      // Sub-agent desks - top left
+      { type: 'desk', position: { x: Math.floor(100 * scaleX), y: Math.floor(130 * scaleY) }, width: Math.floor(55 * scale), height: Math.floor(35 * scale) },
+      { type: 'chair', position: { x: Math.floor(112 * scaleX), y: Math.floor(155 * scaleY) }, width: Math.floor(22 * scale), height: Math.floor(22 * scale) },
+      { type: 'monitor', position: { x: Math.floor(115 * scaleX), y: Math.floor(118 * scaleY) }, width: Math.floor(28 * scale), height: Math.floor(22 * scale) },
       
-      { type: 'desk', position: { x: 540, y: 160 }, width: 60, height: 40 },
-      { type: 'chair', position: { x: 552, y: 185 }, width: 25, height: 25 },
-      { type: 'monitor', position: { x: 555, y: 145 }, width: 30, height: 25 },
+      // Sub-agent desks - top right
+      { type: 'desk', position: { x: Math.floor(480 * scaleX), y: Math.floor(130 * scaleY) }, width: Math.floor(55 * scale), height: Math.floor(35 * scale) },
+      { type: 'chair', position: { x: Math.floor(492 * scaleX), y: Math.floor(155 * scaleY) }, width: Math.floor(22 * scale), height: Math.floor(22 * scale) },
+      { type: 'monitor', position: { x: Math.floor(495 * scaleX), y: Math.floor(118 * scaleY) }, width: Math.floor(28 * scale), height: Math.floor(22 * scale) },
       
-      { type: 'desk', position: { x: 140, y: 410 }, width: 60, height: 40 },
-      { type: 'chair', position: { x: 152, y: 435 }, width: 25, height: 25 },
-      { type: 'monitor', position: { x: 155, y: 395 }, width: 30, height: 25 },
+      // Sub-agent desks - bottom left
+      { type: 'desk', position: { x: Math.floor(100 * scaleX), y: Math.floor(330 * scaleY) }, width: Math.floor(55 * scale), height: Math.floor(35 * scale) },
+      { type: 'chair', position: { x: Math.floor(112 * scaleX), y: Math.floor(355 * scaleY) }, width: Math.floor(22 * scale), height: Math.floor(22 * scale) },
+      { type: 'monitor', position: { x: Math.floor(115 * scaleX), y: Math.floor(318 * scaleY) }, width: Math.floor(28 * scale), height: Math.floor(22 * scale) },
       
-      { type: 'desk', position: { x: 540, y: 410 }, width: 60, height: 40 },
-      { type: 'chair', position: { x: 552, y: 435 }, width: 25, height: 25 },
-      { type: 'monitor', position: { x: 555, y: 395 }, width: 30, height: 25 },
-      
-      // Idle area furniture
-      { type: 'desk', position: { x: 90, y: 290 }, width: 50, height: 35 },
-      { type: 'chair', position: { x: 100, y: 310 }, width: 20, height: 20 },
-      
-      { type: 'desk', position: { x: 590, y: 290 }, width: 50, height: 35 },
-      { type: 'chair', position: { x: 600, y: 310 }, width: 20, height: 20 },
+      // Sub-agent desks - bottom right
+      { type: 'desk', position: { x: Math.floor(480 * scaleX), y: Math.floor(330 * scaleY) }, width: Math.floor(55 * scale), height: Math.floor(35 * scale) },
+      { type: 'chair', position: { x: Math.floor(492 * scaleX), y: Math.floor(355 * scaleY) }, width: Math.floor(22 * scale), height: Math.floor(22 * scale) },
+      { type: 'monitor', position: { x: Math.floor(495 * scaleX), y: Math.floor(318 * scaleY) }, width: Math.floor(28 * scale), height: Math.floor(22 * scale) },
       
       // Decorative elements
-      { type: 'plant', position: { x: 50, y: 50 }, width: 30, height: 40 },
-      { type: 'plant', position: { x: 720, y: 50 }, width: 30, height: 40 },
-      { type: 'plant', position: { x: 50, y: 510 }, width: 30, height: 40 },
-      { type: 'plant', position: { x: 720, y: 510 }, width: 30, height: 40 },
-      
-      { type: 'shelf', position: { x: 20, y: 200 }, width: 40, height: 100 },
-      { type: 'shelf', position: { x: 740, y: 200 }, width: 40, height: 100 },
+      { type: 'plant', position: { x: Math.floor(40 * scaleX), y: Math.floor(40 * scaleY) }, width: Math.floor(25 * scale), height: Math.floor(35 * scale) },
+      { type: 'plant', position: { x: Math.floor(580 * scaleX), y: Math.floor(40 * scaleY) }, width: Math.floor(25 * scale), height: Math.floor(35 * scale) },
+      { type: 'plant', position: { x: Math.floor(40 * scaleX), y: Math.floor(400 * scaleY) }, width: Math.floor(25 * scale), height: Math.floor(35 * scale) },
+      { type: 'plant', position: { x: Math.floor(580 * scaleX), y: Math.floor(400 * scaleY) }, width: Math.floor(25 * scale), height: Math.floor(35 * scale) },
       
       // Windows
-      { type: 'window', position: { x: 200, y: 20 }, width: 100, height: 40 },
-      { type: 'window', position: { x: 500, y: 20 }, width: 100, height: 40 },
+      { type: 'window', position: { x: Math.floor(180 * scaleX), y: Math.floor(18 * scaleY) }, width: Math.floor(80 * scale), height: Math.floor(35 * scale) },
+      { type: 'window', position: { x: Math.floor(420 * scaleX), y: Math.floor(18 * scaleY) }, width: Math.floor(80 * scale), height: Math.floor(35 * scale) },
       
       // Door
-      { type: 'door', position: { x: 380, y: 570 }, width: 40, height: 20 },
+      { type: 'door', position: { x: Math.floor(300 * scaleX), y: Math.floor(height - 20) }, width: Math.floor(35 * scale), height: Math.floor(18 * scale) },
     ],
   };
 }

@@ -117,8 +117,8 @@ EventLine.displayName = 'EventLine';
 /**
  * LiveFeed component
  */
-export const LiveFeed = React.memo<LiveFeedProps>(
-  ({ events, maxItems = 50, isLoading = false }) => {
+export const LiveFeed = React.memo(
+  ({ events, maxItems = 50, isLoading = false, compact = false }: LiveFeedProps & { compact?: boolean }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const shouldAutoScroll = useRef(true);
     
@@ -144,6 +144,55 @@ export const LiveFeed = React.memo<LiveFeedProps>(
     };
     
     const displayEvents = events.slice(0, maxItems);
+    
+    if (compact) {
+      return (
+        <div className="border border-slate-700 rounded-lg bg-slate-900 flex flex-col h-full">
+          {/* Compact Header */}
+          <div className="px-3 py-2 border-b border-slate-700 bg-slate-800 flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-200 flex items-center gap-2">
+              <span>📡</span>
+              <span>LIVE FEED</span>
+            </h3>
+            <span className="text-xs text-slate-500">{displayEvents.length} events</span>
+          </div>
+          
+          {/* Compact Events */}
+          <div
+            ref={containerRef}
+            onScroll={handleScroll}
+            className="flex-1 overflow-y-auto bg-slate-950/50"
+          >
+            {displayEvents.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-slate-500 text-xs">
+                Waiting for events...
+              </div>
+            ) : (
+              <div>
+                {displayEvents.map((event, idx) => (
+                  <div 
+                    key={`${event.id}-${idx}`}
+                    className="px-3 py-1.5 text-xs font-mono border-b border-slate-800 hover:bg-slate-800/50"
+                  >
+                    <span className="text-green-400 mr-2">
+                      {new Date(event.timestamp).toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit', 
+                        hour12: false 
+                      })}
+                    </span>
+                    <span className={getEventColor(event.type)}>
+                      {getEventEmoji(event.type)} {formatEventMessage(event)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
     
     return (
       <div className="border-2 border-slate-700 rounded-lg bg-slate-900 flex flex-col h-[300px]">

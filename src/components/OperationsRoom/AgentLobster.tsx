@@ -48,6 +48,7 @@ interface AgentLobsterProps {
   ctx: CanvasRenderingContext2D;
   frame: number;
   isHovered: boolean;
+  isSelected?: boolean;
   showDetails?: boolean;
 }
 
@@ -56,10 +57,15 @@ interface AgentLobsterProps {
  * This is a pure render function (not a React component that renders to DOM)
  */
 export function renderLobster(props: AgentLobsterProps): void {
-  const { state, ctx, frame, isHovered } = props;
+  const { state, ctx, frame, isHovered, isSelected } = props;
   
   // Get colors for this lobster
   const colors = getAgentColors(state.isMain, state.colorIndex);
+  
+  // Draw selection indicator if selected
+  if (isSelected) {
+    drawSelectionIndicator(ctx, state.position.x, state.position.y, frame, colors.shell);
+  }
   
   // Draw shadow under lobster
   drawLobsterShadow(ctx, state.position.x, state.position.y);
@@ -103,8 +109,8 @@ export function renderLobster(props: AgentLobsterProps): void {
     );
   }
   
-  // Draw speech bubble on hover
-  if (isHovered && state.currentTask) {
+  // Draw speech bubble on hover (but not if selected, since details are in panel)
+  if (isHovered && !isSelected && state.currentTask) {
     drawSpeechBubble(
       ctx,
       state.position.x - 50,
@@ -118,6 +124,63 @@ export function renderLobster(props: AgentLobsterProps): void {
   if (state.spawnTime && Date.now() - state.spawnTime < 3000) {
     drawSpawnSparkles(ctx, state.position.x, state.position.y, frame, colors.shell);
   }
+}
+
+/**
+ * Draw selection indicator around selected lobster
+ */
+function drawSelectionIndicator(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  frame: number,
+  color: string
+) {
+  const scale = SPRITE_SIZE.scale;
+  const width = SPRITE_SIZE.width * scale;
+  const height = SPRITE_SIZE.height * scale;
+  const padding = 6;
+  
+  ctx.save();
+  
+  // Pulsing effect
+  const pulse = 0.6 + Math.sin(frame * 0.1) * 0.4;
+  ctx.globalAlpha = pulse;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  
+  // Draw rounded rect around lobster
+  ctx.beginPath();
+  ctx.roundRect(
+    x - padding,
+    y - padding,
+    width + padding * 2,
+    height + padding * 2,
+    6
+  );
+  ctx.stroke();
+  
+  // Corner markers
+  ctx.fillStyle = color;
+  const markerSize = 4;
+  
+  // Top-left
+  ctx.fillRect(x - padding - 1, y - padding - 1, markerSize, 2);
+  ctx.fillRect(x - padding - 1, y - padding - 1, 2, markerSize);
+  
+  // Top-right
+  ctx.fillRect(x + width + padding - markerSize + 2, y - padding - 1, markerSize, 2);
+  ctx.fillRect(x + width + padding, y - padding - 1, 2, markerSize);
+  
+  // Bottom-left
+  ctx.fillRect(x - padding - 1, y + height + padding, markerSize, 2);
+  ctx.fillRect(x - padding - 1, y + height + padding - markerSize + 2, 2, markerSize);
+  
+  // Bottom-right
+  ctx.fillRect(x + width + padding - markerSize + 2, y + height + padding, markerSize, 2);
+  ctx.fillRect(x + width + padding, y + height + padding - markerSize + 2, 2, markerSize);
+  
+  ctx.restore();
 }
 
 /**

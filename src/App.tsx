@@ -90,7 +90,6 @@ function AuthenticatedRoutes() {
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/webhooks" element={<WebhooksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/operations" element={<OperationsPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -102,8 +101,8 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Operations Room - Public route, outside AuthProvider to avoid auth initialization conflicts */}
-        <Route path="/ops-test" element={<OperationsPage />} />
+        {/* Operations Room - Public route (no auth required for visualization) */}
+        <Route path="/operations" element={<OperationsPage />} />
         
         {/* All other routes require auth */}
         <Route

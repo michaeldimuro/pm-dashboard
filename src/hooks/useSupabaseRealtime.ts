@@ -100,12 +100,13 @@ function rowToEvent(row: OperationsEventRow): OperationEvent {
 function mapDbStatusToAgentStatus(dbStatus: string): 'active' | 'idle' | 'working' | 'waiting' {
   switch (dbStatus) {
     case 'active':
-      return 'active';
+      return 'working'; // Active means working!
     case 'working':
       return 'working';
     case 'idle':
       return 'idle';
     case 'initiated':
+      return 'active';
     case 'terminated':
     default:
       return 'idle';
@@ -120,7 +121,7 @@ function mapDbStatusToSubAgentStatus(dbStatus: string): 'spawned' | 'active' | '
     case 'initiated':
       return 'spawned';
     case 'active':
-      return 'active';
+      return 'working';
     case 'working':
       return 'working';
     case 'idle':
@@ -132,48 +133,55 @@ function mapDbStatusToSubAgentStatus(dbStatus: string): 'spawned' | 'active' | '
   }
 }
 
-// Module-level flag to track if data has been fetched
-let dataFetched = false;
+// Track initialization state
+let initializationPromise: Promise<void> | null = null;
 let channelInstance: RealtimeChannel | null = null;
 
 /**
- * Fetch initial data and set up realtime subscriptions (runs once globally)
+ * Fetch initial data and set up realtime subscriptions
  */
-async function initializeOperationsData() {
-  if (dataFetched) {
-    console.log('[SupabaseRealtime] Data already fetched, skipping');
-    return;
-  }
-  
-  console.log('[SupabaseRealtime] Initializing and fetching data...');
-  dataFetched = true;
+async function initializeOperationsData(): Promise<void> {
+  console.log('[SupabaseRealtime] Starting initialization...');
   
   const store = useOperationsStore.getState();
 
   try {
-    // Fetch active agent sessions
+    // Fetch active agent sessions - include 'active' status
+    console.log('[SupabaseRealtime] Fetching agent sessions...');
     const { data: sessions, error: sessionsError } = await supabase
       .from('agent_sessions')
       .select('*')
-      .in('status', ['initiated', 'active', 'idle'])
+      .in('status', ['initiated', 'active', 'idle', 'working'])
       .order('created_at', { ascending: false })
       .limit(50);
 
     if (sessionsError) {
       console.error('[SupabaseRealtime] Error fetching sessions:', sessionsError);
-    } else if (sessions) {
-      console.log(`[SupabaseRealtime] Loaded ${sessions.length} sessions`);
-      
+      store.setConnected(false, sessionsError.message);
+      throw sessionsError;
+    }
+    
+    console.log(`[SupabaseRealtime] Loaded ${sessions?.length || 0} sessions:`, sessions);
+    
+    if (sessions && sessions.length > 0) {
       sessions.forEach((row: AgentSessionRow) => {
+        console.log(`[SupabaseRealtime] Processing session: ${row.agent_name} (${row.agent_type})`);
         if (row.agent_type === 'main') {
-          store.updateMainAgent(rowToAgent(row));
+          const agent = rowToAgent(row);
+          console.log('[SupabaseRealtime] Setting main agent:', agent);
+          store.updateMainAgent(agent);
         } else {
-          store.addSubAgent(rowToSubAgent(row));
+          const subAgent = rowToSubAgent(row);
+          console.log('[SupabaseRealtime] Adding sub-agent:', subAgent);
+          store.addSubAgent(subAgent);
         }
       });
+    } else {
+      console.log('[SupabaseRealtime] No active sessions found in database');
     }
 
     // Fetch recent events
+    console.log('[SupabaseRealtime] Fetching events...');
     const { data: events, error: eventsError } = await supabase
       .from('operations_events')
       .select('*')
@@ -193,10 +201,12 @@ async function initializeOperationsData() {
     
     // Set connected status
     store.setConnected(true, null);
+    console.log('[SupabaseRealtime] Initialization complete, store state:', store.mainAgent);
     
   } catch (err) {
     console.error('[SupabaseRealtime] Exception fetching initial data:', err);
     store.setConnected(false, String(err));
+    throw err;
   }
 
   // Set up realtime subscriptions
@@ -308,31 +318,64 @@ function handleEventChange(payload: {
 
 /**
  * Main hook for Supabase Realtime subscriptions
- * This hook just triggers initialization - actual data management is global
  */
 export function useSupabaseRealtime() {
-  const [initialized, setInitialized] = useState(dataFetched);
+  const [initialized, setInitialized] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   // Get store state for return value
   const isConnected = useOperationsStore((state) => state.isConnected);
   const connectionError = useOperationsStore((state) => state.connectionError);
 
   useEffect(() => {
-    // Initialize data on first mount (globally)
-    if (!dataFetched) {
-      initializeOperationsData().then(() => {
-        setInitialized(true);
-      });
-    }
+    let mounted = true;
     
-    // No cleanup needed - data and subscriptions persist
+    // Initialize data - use a promise to ensure single initialization
+    const init = async () => {
+      if (!initializationPromise) {
+        initializationPromise = initializeOperationsData();
+      }
+      
+      try {
+        await initializationPromise;
+        if (mounted) {
+          setInitialized(true);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('[SupabaseRealtime] Initialization failed:', err);
+        if (mounted) {
+          setLoading(false);
+        }
+        // Allow retry on error
+        initializationPromise = null;
+      }
+    };
+    
+    init();
+    
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   return {
     isConnected,
     error: connectionError,
     initialized,
+    loading,
   };
+}
+
+/**
+ * Force refresh of operations data
+ */
+export async function refreshOperationsData(): Promise<void> {
+  // Reset initialization
+  initializationPromise = null;
+  
+  // Clear and re-fetch
+  await initializeOperationsData();
 }
 
 /**
