@@ -3,7 +3,7 @@
  * Subscribes to real-time changes in agent_sessions and operations_events
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useOperationsStore } from '@/stores/operationsStore';
@@ -132,197 +132,206 @@ function mapDbStatusToSubAgentStatus(dbStatus: string): 'spawned' | 'active' | '
   }
 }
 
+// Module-level flag to track if data has been fetched
+let dataFetched = false;
+let channelInstance: RealtimeChannel | null = null;
+
 /**
- * Main hook for Supabase Realtime subscriptions
+ * Fetch initial data and set up realtime subscriptions (runs once globally)
  */
-export function useSupabaseRealtime() {
-  const channelRef = useRef<RealtimeChannel | null>(null);
+async function initializeOperationsData() {
+  if (dataFetched) {
+    console.log('[SupabaseRealtime] Data already fetched, skipping');
+    return;
+  }
   
-  // Get store state directly (not actions that cause re-renders)
-  const isConnected = useOperationsStore((state) => state.isConnected);
-  const connectionError = useOperationsStore((state) => state.connectionError);
+  console.log('[SupabaseRealtime] Initializing and fetching data...');
+  dataFetched = true;
+  
+  const store = useOperationsStore.getState();
 
-  useEffect(() => {
-    // Abort controller for cleanup
-    const abortController = new AbortController();
-    
-    console.log('[SupabaseRealtime] Initializing...');
+  try {
+    // Fetch active agent sessions
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('agent_sessions')
+      .select('*')
+      .in('status', ['initiated', 'active', 'idle'])
+      .order('created_at', { ascending: false })
+      .limit(50);
 
-    // Get store actions (stable references via getState)
-    const store = useOperationsStore.getState();
-
-    /**
-     * Fetch initial data from database
-     */
-    async function fetchInitialData() {
-      console.log('[SupabaseRealtime] Fetching initial data...');
-
-      try {
-        // Fetch active agent sessions
-        const { data: sessions, error: sessionsError } = await supabase
-          .from('agent_sessions')
-          .select('*')
-          .in('status', ['initiated', 'active', 'idle'])
-          .order('created_at', { ascending: false })
-          .limit(50);
-
-        // Check if aborted before updating state
-        if (abortController.signal.aborted) {
-          console.log('[SupabaseRealtime] Aborted, skipping session updates');
-          return;
-        }
-
-        if (sessionsError) {
-          console.error('[SupabaseRealtime] Error fetching sessions:', sessionsError);
-        } else if (sessions) {
-          console.log(`[SupabaseRealtime] Loaded ${sessions.length} sessions`);
-          
-          sessions.forEach((row: AgentSessionRow) => {
-            if (row.agent_type === 'main') {
-              store.updateMainAgent(rowToAgent(row));
-            } else {
-              store.addSubAgent(rowToSubAgent(row));
-            }
-          });
-        }
-
-        // Fetch recent events
-        const { data: events, error: eventsError } = await supabase
-          .from('operations_events')
-          .select('*')
-          .order('triggered_at', { ascending: false })
-          .limit(50);
-
-        // Check if aborted before updating state
-        if (abortController.signal.aborted) {
-          console.log('[SupabaseRealtime] Aborted, skipping event updates');
-          return;
-        }
-
-        if (eventsError) {
-          console.error('[SupabaseRealtime] Error fetching events:', eventsError);
-        } else if (events) {
-          console.log(`[SupabaseRealtime] Loaded ${events.length} events`);
-          
-          // Add events in reverse order (oldest first) so newest appears at top
-          [...events].reverse().forEach((row: OperationsEventRow) => {
-            store.addEvent(rowToEvent(row));
-          });
-        }
-      } catch (err) {
-        console.error('[SupabaseRealtime] Exception fetching initial data:', err);
-      }
-    }
-
-    /**
-     * Handle agent_sessions changes
-     */
-    function handleSessionChange(payload: {
-      eventType: 'INSERT' | 'UPDATE' | 'DELETE';
-      new: AgentSessionRow;
-      old: AgentSessionRow | null;
-    }) {
-      console.log('[SupabaseRealtime] Session change:', payload.eventType, payload.new?.agent_name);
-
-      const row = payload.new;
-      if (!row) return;
-
-      const store = useOperationsStore.getState();
-
-      if (payload.eventType === 'DELETE' || row.status === 'terminated') {
-        if (row.agent_type === 'main') {
-          store.updateMainAgent({ status: 'idle' });
-        } else {
-          store.updateSubAgent(row.agent_id, {
-            status: row.status === 'terminated' ? 'completed' : 'idle',
-            completedAt: row.terminated_at ? new Date(row.terminated_at) : undefined,
-            summary: row.summary || undefined,
-          });
-        }
-      } else if (payload.eventType === 'INSERT') {
+    if (sessionsError) {
+      console.error('[SupabaseRealtime] Error fetching sessions:', sessionsError);
+    } else if (sessions) {
+      console.log(`[SupabaseRealtime] Loaded ${sessions.length} sessions`);
+      
+      sessions.forEach((row: AgentSessionRow) => {
         if (row.agent_type === 'main') {
           store.updateMainAgent(rowToAgent(row));
         } else {
           store.addSubAgent(rowToSubAgent(row));
         }
-      } else if (payload.eventType === 'UPDATE') {
-        if (row.agent_type === 'main') {
-          store.updateMainAgent(rowToAgent(row));
-        } else {
-          store.updateSubAgent(row.agent_id, rowToSubAgent(row));
-        }
-      }
-    }
-
-    /**
-     * Handle operations_events changes
-     */
-    function handleEventChange(payload: {
-      eventType: 'INSERT' | 'UPDATE' | 'DELETE';
-      new: OperationsEventRow;
-      old: OperationsEventRow | null;
-    }) {
-      console.log('[SupabaseRealtime] Event change:', payload.eventType, payload.new?.event_type);
-
-      if (payload.eventType === 'INSERT' && payload.new) {
-        const store = useOperationsStore.getState();
-        store.addEvent(rowToEvent(payload.new));
-      }
-    }
-
-    // Fetch initial data
-    fetchInitialData();
-
-    // Create channel for realtime subscriptions
-    const channel = supabase
-      .channel('operations-room')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'agent_sessions',
-        },
-        (payload) => handleSessionChange(payload as any)
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'operations_events',
-        },
-        (payload) => handleEventChange(payload as any)
-      )
-      .subscribe((status, err) => {
-        console.log('[SupabaseRealtime] Subscription status:', status, err);
-        
-        const store = useOperationsStore.getState();
-        if (status === 'SUBSCRIBED') {
-          store.setConnected(true, null);
-          console.log('[SupabaseRealtime] Connected successfully');
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          store.setConnected(false, err?.message || 'Connection failed');
-          console.error('[SupabaseRealtime] Connection error:', err);
-        }
       });
+    }
 
-    channelRef.current = channel;
+    // Fetch recent events
+    const { data: events, error: eventsError } = await supabase
+      .from('operations_events')
+      .select('*')
+      .order('triggered_at', { ascending: false })
+      .limit(50);
 
-    // Cleanup on unmount
-    return () => {
-      console.log('[SupabaseRealtime] Cleaning up...');
-      abortController.abort();
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-        channelRef.current = null;
+    if (eventsError) {
+      console.error('[SupabaseRealtime] Error fetching events:', eventsError);
+    } else if (events) {
+      console.log(`[SupabaseRealtime] Loaded ${events.length} events`);
+      
+      // Add events in reverse order (oldest first) so newest appears at top
+      [...events].reverse().forEach((row: OperationsEventRow) => {
+        store.addEvent(rowToEvent(row));
+      });
+    }
+    
+    // Set connected status
+    store.setConnected(true, null);
+    
+  } catch (err) {
+    console.error('[SupabaseRealtime] Exception fetching initial data:', err);
+    store.setConnected(false, String(err));
+  }
+
+  // Set up realtime subscriptions
+  setupRealtimeSubscriptions();
+}
+
+/**
+ * Set up Supabase Realtime subscriptions
+ */
+function setupRealtimeSubscriptions() {
+  if (channelInstance) {
+    console.log('[SupabaseRealtime] Channel already exists');
+    return;
+  }
+
+  console.log('[SupabaseRealtime] Setting up realtime subscriptions...');
+
+  const channel = supabase
+    .channel('operations-room')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'agent_sessions',
+      },
+      (payload) => handleSessionChange(payload as any)
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'operations_events',
+      },
+      (payload) => handleEventChange(payload as any)
+    )
+    .subscribe((status, err) => {
+      console.log('[SupabaseRealtime] Subscription status:', status, err);
+      
+      const store = useOperationsStore.getState();
+      if (status === 'SUBSCRIBED') {
+        store.setConnected(true, null);
+        console.log('[SupabaseRealtime] Connected successfully');
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        store.setConnected(false, err?.message || 'Connection failed');
+        console.error('[SupabaseRealtime] Connection error:', err);
       }
-    };
-  }, []); // Empty deps - only run once
+    });
+
+  channelInstance = channel;
+}
+
+/**
+ * Handle agent_sessions changes
+ */
+function handleSessionChange(payload: {
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+  new: AgentSessionRow;
+  old: AgentSessionRow | null;
+}) {
+  console.log('[SupabaseRealtime] Session change:', payload.eventType, payload.new?.agent_name);
+
+  const row = payload.new;
+  if (!row) return;
+
+  const store = useOperationsStore.getState();
+
+  if (payload.eventType === 'DELETE' || row.status === 'terminated') {
+    if (row.agent_type === 'main') {
+      store.updateMainAgent({ status: 'idle' });
+    } else {
+      store.updateSubAgent(row.agent_id, {
+        status: row.status === 'terminated' ? 'completed' : 'idle',
+        completedAt: row.terminated_at ? new Date(row.terminated_at) : undefined,
+        summary: row.summary || undefined,
+      });
+    }
+  } else if (payload.eventType === 'INSERT') {
+    if (row.agent_type === 'main') {
+      store.updateMainAgent(rowToAgent(row));
+    } else {
+      store.addSubAgent(rowToSubAgent(row));
+    }
+  } else if (payload.eventType === 'UPDATE') {
+    if (row.agent_type === 'main') {
+      store.updateMainAgent(rowToAgent(row));
+    } else {
+      store.updateSubAgent(row.agent_id, rowToSubAgent(row));
+    }
+  }
+}
+
+/**
+ * Handle operations_events changes
+ */
+function handleEventChange(payload: {
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+  new: OperationsEventRow;
+  old: OperationsEventRow | null;
+}) {
+  console.log('[SupabaseRealtime] Event change:', payload.eventType, payload.new?.event_type);
+
+  if (payload.eventType === 'INSERT' && payload.new) {
+    const store = useOperationsStore.getState();
+    store.addEvent(rowToEvent(payload.new));
+  }
+}
+
+/**
+ * Main hook for Supabase Realtime subscriptions
+ * This hook just triggers initialization - actual data management is global
+ */
+export function useSupabaseRealtime() {
+  const [initialized, setInitialized] = useState(dataFetched);
+  
+  // Get store state for return value
+  const isConnected = useOperationsStore((state) => state.isConnected);
+  const connectionError = useOperationsStore((state) => state.connectionError);
+
+  useEffect(() => {
+    // Initialize data on first mount (globally)
+    if (!dataFetched) {
+      initializeOperationsData().then(() => {
+        setInitialized(true);
+      });
+    }
+    
+    // No cleanup needed - data and subscriptions persist
+  }, []);
 
   return {
     isConnected,
     error: connectionError,
+    initialized,
   };
 }
 

@@ -350,7 +350,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.log('[Auth] User signed in via onAuthStateChange');
           
           // Skip if initialization already handled this (to avoid race conditions)
-          // The init flow already set authReady, so we don't need to do it again
           if (initializationAttempted.current) {
             console.log('[Auth] Already initialized, skipping duplicate SIGNED_IN handling');
             // Just update session in case it changed
