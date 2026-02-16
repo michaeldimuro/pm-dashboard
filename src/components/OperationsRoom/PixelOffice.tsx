@@ -1,6 +1,6 @@
 /**
- * Pixel Office Component
- * Real-time pixel art visualization of agent activity
+ * Pixel Office Component - LOBSTER EDITION 🦞
+ * Real-time pixel art visualization of agent activity with lobster characters
  */
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
@@ -14,38 +14,21 @@ import {
   calculatePath,
   type OfficeLayout,
   type Point,
-  type Workstation,
 } from '@/lib/officeLayout';
 import {
-  drawSprite,
-  drawSpeechBubble,
-  drawStatusIndicator,
-  drawNameLabel,
-  drawToolIndicator,
   getAgentColors,
   SPRITE_SIZE,
   type SpriteAnimation,
   type SpriteDirection,
 } from '@/lib/pixelSprites';
+import {
+  renderLobster,
+  updateLobsterPosition,
+  isPointInLobster,
+  LobsterInfoPanel,
+  type LobsterState,
+} from './AgentLobster';
 import type { Agent, SubAgent } from '@/types/operations';
-
-interface AgentSprite {
-  id: string;
-  name: string;
-  isMain: boolean;
-  position: Point;
-  targetPosition: Point | null;
-  animation: SpriteAnimation;
-  direction: SpriteDirection;
-  status: string;
-  progress: number;
-  currentTask: string;
-  workstationId: string | null;
-  path: Point[] | null;
-  pathIndex: number;
-  colorIndex: number;
-  lastToolUsed?: string;
-}
 
 export function PixelOffice() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -53,8 +36,9 @@ export function PixelOffice() {
   const frameCountRef = useRef(0);
   
   const [layout] = useState<OfficeLayout>(createDefaultOfficeLayout());
-  const [sprites, setSprites] = useState<Map<string, AgentSprite>>(new Map());
+  const [sprites, setSprites] = useState<Map<string, LobsterState>>(new Map());
   const [hoveredAgent, setHoveredAgent] = useState<string | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Point>({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -65,13 +49,13 @@ export function PixelOffice() {
   const liveFeed = useOperationsStore((state) => state.liveFeed);
 
   /**
-   * Create or update sprite for agent
+   * Create or update lobster sprite for agent
    */
   const updateAgentSprite = useCallback((
     agent: Agent | SubAgent,
     isMain: boolean,
-    existingSprites: Map<string, AgentSprite>
-  ): AgentSprite => {
+    existingSprites: Map<string, LobsterState>
+  ): LobsterState => {
     const existing = existingSprites.get(agent.id);
     
     if (existing) {
@@ -117,8 +101,8 @@ export function PixelOffice() {
         animation,
       };
     } else {
-      // Create new sprite
-      const entrancePoint: Point = { x: 400, y: 550 }; // Door position
+      // Create new lobster sprite with spawn effect
+      const entrancePoint: Point = { x: 380, y: 530 }; // Door position
       const station = findAvailableWorkstation(layout, isMain ? 'main' : 'sub');
       
       let targetPosition: Point | null = null;
@@ -134,7 +118,7 @@ export function PixelOffice() {
       
       return {
         id: agent.id,
-        name: agent.name,
+        name: isMain ? 'Xandus' : agent.name, // Main agent is always Xandus
         isMain,
         position: entrancePoint,
         targetPosition,
@@ -147,6 +131,7 @@ export function PixelOffice() {
         path,
         pathIndex: 0,
         colorIndex: existingSprites.size,
+        spawnTime: Date.now(),
       };
     }
   }, [layout]);
@@ -158,7 +143,7 @@ export function PixelOffice() {
     setSprites((prevSprites) => {
       const newSprites = new Map(prevSprites);
       
-      // Update main agent
+      // Update main agent (Xandus)
       if (mainAgent) {
         const sprite = updateAgentSprite(mainAgent, true, newSprites);
         newSprites.set(mainAgent.id, sprite);
@@ -167,12 +152,24 @@ export function PixelOffice() {
       // Update sub-agents
       Object.values(subAgents).forEach((subAgent) => {
         if (subAgent.status === 'completed' || subAgent.status === 'failed') {
-          // Remove completed/failed agents after animation
+          // Keep completed agents briefly for exit animation, then remove
           const existing = newSprites.get(subAgent.id);
-          if (existing?.workstationId) {
-            freeWorkstation(layout, existing.workstationId);
+          if (existing) {
+            if (existing.spawnTime && Date.now() - existing.spawnTime > 5000) {
+              // Agent has been around, let it leave
+              if (existing.workstationId) {
+                freeWorkstation(layout, existing.workstationId);
+              }
+              newSprites.delete(subAgent.id);
+            } else {
+              // Update status but keep visible briefly
+              newSprites.set(subAgent.id, {
+                ...existing,
+                status: subAgent.status,
+                animation: 'idle',
+              });
+            }
           }
-          newSprites.delete(subAgent.id);
         } else {
           const sprite = updateAgentSprite(subAgent, false, newSprites);
           newSprites.set(subAgent.id, sprite);
@@ -207,7 +204,7 @@ export function PixelOffice() {
   }, [liveFeed]);
 
   /**
-   * Animation loop
+   * Main animation loop
    */
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -216,11 +213,16 @@ export function PixelOffice() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Enable image smoothing for better pixel art at scale
+    ctx.imageSmoothingEnabled = false;
+
     const animate = () => {
       frameCountRef.current++;
+      const frame = frameCountRef.current;
       
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Clear canvas with dark background
+      ctx.fillStyle = '#0a0a0f';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       
       // Apply zoom and pan
       ctx.save();
@@ -230,93 +232,40 @@ export function PixelOffice() {
       // Draw office environment
       drawOfficeEnvironment(ctx, layout);
       
-      // Update and draw sprites
+      // Update and draw lobster sprites
       setSprites((prevSprites) => {
         const newSprites = new Map(prevSprites);
         
-        newSprites.forEach((sprite) => {
-          let updatedSprite = { ...sprite };
-          
+        // Sort sprites by Y position for proper layering (back to front)
+        const sortedSprites = Array.from(newSprites.values()).sort(
+          (a, b) => a.position.y - b.position.y
+        );
+        
+        sortedSprites.forEach((sprite) => {
           // Update position if moving along path
-          if (sprite.path && sprite.pathIndex < sprite.path.length) {
-            updatedSprite.position = sprite.path[sprite.pathIndex];
-            updatedSprite.pathIndex = sprite.pathIndex + 1;
-            
-            // Update direction based on movement
-            if (sprite.pathIndex > 0) {
-              const prev = sprite.path[sprite.pathIndex - 1];
-              const curr = sprite.path[sprite.pathIndex];
-              if (curr.x > prev.x) updatedSprite.direction = 'right';
-              else if (curr.x < prev.x) updatedSprite.direction = 'left';
-              else if (curr.y < prev.y) updatedSprite.direction = 'up';
-              else updatedSprite.direction = 'down';
-            }
-            
-            // Arrived at destination
-            if (sprite.pathIndex >= sprite.path.length) {
-              updatedSprite.path = null;
-              updatedSprite.pathIndex = 0;
-              updatedSprite.targetPosition = null;
-              updatedSprite.animation = sprite.workstationId ? 'sitting' : 'idle';
-            }
+          let updatedSprite = updateLobsterPosition(sprite);
+          
+          // Update animation based on current state
+          if (updatedSprite.status === 'working' && updatedSprite.workstationId && !updatedSprite.path) {
+            updatedSprite.animation = 'working';
           }
           
-          // Draw sprite
-          const colors = getAgentColors(sprite.isMain, sprite.colorIndex);
-          drawSprite(
+          // Render the lobster
+          renderLobster({
+            state: updatedSprite,
             ctx,
-            sprite.position.x,
-            sprite.position.y,
-            colors,
-            updatedSprite.animation,
-            updatedSprite.direction,
-            frameCountRef.current
-          );
-          
-          // Draw status indicator
-          drawStatusIndicator(
-            ctx,
-            sprite.position.x,
-            sprite.position.y - 10,
-            sprite.status as any,
-            sprite.progress
-          );
-          
-          // Draw name label
-          drawNameLabel(
-            ctx,
-            sprite.position.x,
-            sprite.position.y,
-            sprite.name,
-            sprite.isMain
-          );
-          
-          // Draw tool indicator if recently used
-          if (sprite.lastToolUsed && frameCountRef.current % 120 < 60) {
-            drawToolIndicator(
-              ctx,
-              sprite.position.x,
-              sprite.position.y,
-              sprite.lastToolUsed
-            );
-          }
-          
-          // Draw speech bubble if hovered
-          if (hoveredAgent === sprite.id && sprite.currentTask) {
-            drawSpeechBubble(
-              ctx,
-              sprite.position.x - 50,
-              sprite.position.y - 80,
-              sprite.currentTask,
-              200
-            );
-          }
+            frame,
+            isHovered: hoveredAgent === sprite.id,
+          });
           
           newSprites.set(sprite.id, updatedSprite);
         });
         
         return newSprites;
       });
+      
+      // Draw ambient particles for atmosphere
+      drawAmbientParticles(ctx, frame, layout.width, layout.height);
       
       ctx.restore();
       
@@ -333,33 +282,33 @@ export function PixelOffice() {
   }, [layout, hoveredAgent, zoom, pan]);
 
   /**
-   * Handle mouse events for hover detection
+   * Handle mouse events for hover/click detection
    */
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left - pan.x) / zoom;
-    const y = (e.clientY - rect.top - pan.y) / zoom;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const x = ((e.clientX - rect.left) * scaleX - pan.x) / zoom;
+    const y = ((e.clientY - rect.top) * scaleY - pan.y) / zoom;
 
-    // Check if hovering over any sprite
+    // Check if hovering over any lobster
     let foundAgent: string | null = null;
     sprites.forEach((sprite) => {
-      const spriteWidth = SPRITE_SIZE.width * SPRITE_SIZE.scale;
-      const spriteHeight = SPRITE_SIZE.height * SPRITE_SIZE.scale;
-      
-      if (
-        x >= sprite.position.x &&
-        x <= sprite.position.x + spriteWidth &&
-        y >= sprite.position.y &&
-        y <= sprite.position.y + spriteHeight
-      ) {
+      if (isPointInLobster({ x, y }, sprite.position)) {
         foundAgent = sprite.id;
       }
     });
 
     setHoveredAgent(foundAgent);
+    
+    // Update cursor
+    if (canvas) {
+      canvas.style.cursor = foundAgent ? 'pointer' : (isPanning ? 'grabbing' : 'grab');
+    }
 
     // Handle panning
     if (isPanning) {
@@ -371,9 +320,30 @@ export function PixelOffice() {
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (e.button === 0) { // Left click
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    const x = ((e.clientX - rect.left) * scaleX - pan.x) / zoom;
+    const y = ((e.clientY - rect.top) * scaleY - pan.y) / zoom;
+
+    // Check for click on lobster
+    let clickedAgent: string | null = null;
+    sprites.forEach((sprite) => {
+      if (isPointInLobster({ x, y }, sprite.position)) {
+        clickedAgent = sprite.id;
+      }
+    });
+
+    if (clickedAgent) {
+      setSelectedAgent(clickedAgent === selectedAgent ? null : clickedAgent);
+    } else if (e.button === 0) {
       setIsPanning(true);
       setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+      setSelectedAgent(null);
     }
   };
 
@@ -384,16 +354,18 @@ export function PixelOffice() {
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setZoom((prev) => Math.max(0.5, Math.min(2, prev * delta)));
+    setZoom((prev) => Math.max(0.5, Math.min(2.5, prev * delta)));
   };
 
-  /**
-   * Reset view
-   */
   const handleResetView = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
   };
+
+  // Count agents by type
+  const mainAgentCount = Array.from(sprites.values()).filter(s => s.isMain).length;
+  const subAgentCount = Array.from(sprites.values()).filter(s => !s.isMain).length;
+  const workingCount = Array.from(sprites.values()).filter(s => s.status === 'working').length;
 
   return (
     <div className="relative w-full h-full bg-gray-900 rounded-lg overflow-hidden">
@@ -401,7 +373,7 @@ export function PixelOffice() {
         ref={canvasRef}
         width={layout.width}
         height={layout.height}
-        className="w-full h-full cursor-move"
+        className="w-full h-full"
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
@@ -409,25 +381,25 @@ export function PixelOffice() {
         onWheel={handleWheel}
       />
       
-      {/* Controls */}
+      {/* Zoom Controls */}
       <div className="absolute top-4 right-4 flex flex-col gap-2">
         <button
-          onClick={() => setZoom((prev) => Math.min(2, prev * 1.2))}
-          className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-sm font-mono transition-colors"
+          onClick={() => setZoom((prev) => Math.min(2.5, prev * 1.2))}
+          className="px-3 py-2 bg-gray-800/90 hover:bg-gray-700 text-white rounded-lg text-sm font-mono transition-all hover:scale-105 border border-gray-700"
           title="Zoom In"
         >
           +
         </button>
         <button
           onClick={() => setZoom((prev) => Math.max(0.5, prev * 0.8))}
-          className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-sm font-mono transition-colors"
+          className="px-3 py-2 bg-gray-800/90 hover:bg-gray-700 text-white rounded-lg text-sm font-mono transition-all hover:scale-105 border border-gray-700"
           title="Zoom Out"
         >
           −
         </button>
         <button
           onClick={handleResetView}
-          className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-sm font-mono transition-colors"
+          className="px-3 py-2 bg-gray-800/90 hover:bg-gray-700 text-white rounded-lg text-sm font-mono transition-all hover:scale-105 border border-gray-700"
           title="Reset View"
         >
           ⟲
@@ -435,58 +407,99 @@ export function PixelOffice() {
       </div>
 
       {/* Stats overlay */}
-      <div className="absolute bottom-4 left-4 bg-gray-800/90 backdrop-blur-sm rounded-lg px-4 py-3 text-white font-mono text-sm">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-cyan-400"></div>
-            <span>Agents: {sprites.size}</span>
+      <div className="absolute bottom-4 left-4 bg-gray-800/95 backdrop-blur-sm rounded-xl px-4 py-3 text-white font-mono text-sm border border-gray-700">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3 text-lg font-bold border-b border-gray-600 pb-2 mb-1">
+            <span>🦞</span>
+            <span>Lobster HQ</span>
           </div>
+          
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400"></div>
-            <span>Zoom: {(zoom * 100).toFixed(0)}%</span>
+            <div 
+              className="w-3 h-3 rounded-full animate-pulse"
+              style={{ backgroundColor: '#E63946' }}
+            />
+            <span className="text-gray-300">Main Agent:</span>
+            <span className="text-cyan-400 font-semibold">{mainAgentCount > 0 ? 'Xandus' : 'Offline'}</span>
           </div>
-          <div className="text-xs text-gray-400 mt-1">
-            Click + drag to pan • Scroll to zoom
+          
+          <div className="flex items-center gap-2">
+            <div 
+              className="w-3 h-3 rounded-full"
+              style={{ backgroundColor: '#00B4D8' }}
+            />
+            <span className="text-gray-300">Sub-Agents:</span>
+            <span className="text-purple-400 font-semibold">{subAgentCount}</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <div 
+              className="w-3 h-3 rounded-full animate-pulse"
+              style={{ backgroundColor: '#00ff88' }}
+            />
+            <span className="text-gray-300">Working:</span>
+            <span className="text-green-400 font-semibold">{workingCount}</span>
+          </div>
+          
+          <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-700">
+            <div>Click + drag to pan</div>
+            <div>Scroll to zoom ({(zoom * 100).toFixed(0)}%)</div>
+            <div>Click lobster for details</div>
           </div>
         </div>
       </div>
 
-      {/* Hovered agent tooltip */}
-      {hoveredAgent && (
-        <div className="absolute top-4 left-4 bg-gray-800/95 backdrop-blur-sm rounded-lg px-4 py-3 text-white font-mono text-sm max-w-xs">
-          {(() => {
-            const sprite = sprites.get(hoveredAgent);
-            if (!sprite) return null;
-            
-            return (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: sprite.isMain ? '#00ffff' : '#ff00ff' }}
-                  ></div>
-                  <span className="font-bold">{sprite.name}</span>
-                </div>
-                <div className="text-xs space-y-1">
-                  <div>Status: <span className="text-cyan-400">{sprite.status}</span></div>
-                  <div>Progress: <span className="text-green-400">{sprite.progress}%</span></div>
-                  {sprite.currentTask && (
-                    <div className="mt-2 pt-2 border-t border-gray-700">
-                      <div className="text-gray-400">Current Task:</div>
-                      <div className="text-white mt-1">{sprite.currentTask}</div>
-                    </div>
-                  )}
-                  {sprite.lastToolUsed && (
-                    <div className="text-yellow-400 mt-1">
-                      🔧 Using: {sprite.lastToolUsed}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
+      {/* Selected agent info panel */}
+      {selectedAgent && sprites.has(selectedAgent) && (
+        <div className="absolute top-4 left-4">
+          <LobsterInfoPanel
+            lobster={sprites.get(selectedAgent)!}
+            onClose={() => setSelectedAgent(null)}
+          />
+        </div>
+      )}
+
+      {/* Hover tooltip (simplified) */}
+      {hoveredAgent && !selectedAgent && sprites.has(hoveredAgent) && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-gray-800/95 backdrop-blur-sm rounded-lg px-4 py-2 text-white font-mono text-sm border border-gray-700 pointer-events-none">
+          <div className="flex items-center gap-2">
+            <span>🦞</span>
+            <span className="font-bold">{sprites.get(hoveredAgent)!.name}</span>
+            <span className="text-gray-400">|</span>
+            <span className={`${sprites.get(hoveredAgent)!.status === 'working' ? 'text-green-400' : 'text-gray-400'}`}>
+              {sprites.get(hoveredAgent)!.status}
+            </span>
+          </div>
         </div>
       )}
     </div>
   );
+}
+
+/**
+ * Draw ambient floating particles for atmosphere
+ */
+function drawAmbientParticles(
+  ctx: CanvasRenderingContext2D,
+  frame: number,
+  width: number,
+  height: number
+) {
+  const particles = 8;
+  
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  
+  for (let i = 0; i < particles; i++) {
+    const x = (Math.sin(frame * 0.01 + i * 2) + 1) * (width / 2);
+    const y = (frame * 0.3 + i * 100) % (height + 50) - 25;
+    const size = 2 + Math.sin(frame * 0.05 + i) * 1;
+    
+    ctx.fillStyle = i % 2 === 0 ? '#00ffff' : '#ff6b6b';
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  ctx.restore();
 }
