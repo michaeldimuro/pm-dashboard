@@ -5,7 +5,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useOperationRoomWebSocket } from '@/hooks/useOperationRoomWebSocket';
-import { useOperationsRoomData } from '@/stores/operationsStore';
+import { useOperationsStore } from '@/stores/operationsStore';
 import { OperationsHeader } from './OperationsHeader';
 import { MainAgentPanel } from './MainAgentPanel';
 import { SubAgentGrid } from './SubAgentGrid';
@@ -24,9 +24,20 @@ export const OperationsRoom = React.memo(() => {
   // View mode toggle
   const [viewMode, setViewMode] = useState<'pixel' | 'panels'>('pixel');
   
-  // Get all state from store using single combined selector (prevents hooks ordering issues)
-  const { mainAgent, subAgents, taskFlow, liveFeed, connectionStatus, subAgentCount } = 
-    useOperationsRoomData();
+  // Get state from store using individual selectors (prevents getSnapshot caching issues)
+  const mainAgent = useOperationsStore((state) => state.mainAgent);
+  const subAgents = useOperationsStore((state) => state.subAgents);
+  const taskFlow = useOperationsStore((state) => state.taskFlow);
+  const liveFeed = useOperationsStore((state) => state.liveFeed);
+  const isConnected = useOperationsStore((state) => state.isConnected);
+  const connectionError = useOperationsStore((state) => state.connectionError);
+  const subAgentCount = Object.keys(subAgents).length;
+  
+  // Memoize connectionStatus to prevent unnecessary re-renders
+  const connectionStatus = useMemo(
+    () => ({ isConnected, error: connectionError }),
+    [isConnected, connectionError]
+  );
   
   // Calculate metrics
   const eventRate = useMemo(() => {

@@ -61,12 +61,9 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function AppRoutes() {
+function AuthenticatedRoutes() {
   return (
     <Routes>
-      {/* Operations Room - Public for testing (TODO: add auth later) */}
-      <Route path="/ops-test" element={<OperationsPage />} />
-      
       <Route
         path="/login"
         element={
@@ -104,9 +101,20 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <Routes>
+        {/* Operations Room - Public route, outside AuthProvider to avoid auth initialization conflicts */}
+        <Route path="/ops-test" element={<OperationsPage />} />
+        
+        {/* All other routes require auth */}
+        <Route
+          path="*"
+          element={
+            <AuthProvider>
+              <AuthenticatedRoutes />
+            </AuthProvider>
+          }
+        />
+      </Routes>
     </BrowserRouter>
   );
 }
