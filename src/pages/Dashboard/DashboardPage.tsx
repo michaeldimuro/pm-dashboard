@@ -52,7 +52,17 @@ export function DashboardPage() {
     if (user) {
       fetchDashboardData();
     }
-  }, [user]);
+    
+    // Safety timeout: if dashboard doesn't load within 10 seconds, stop loading
+    const timeout = setTimeout(() => {
+      if (loading) {
+        console.warn('[Dashboard] Loading timeout, stopping loading state');
+        setLoading(false);
+      }
+    }, 10000);
+    
+    return () => clearTimeout(timeout);
+  }, [user, loading]);
 
   const fetchDashboardData = async () => {
     setLoading(true);

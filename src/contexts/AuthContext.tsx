@@ -183,9 +183,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(currentSession);
         setSupabaseUser(currentSession.user);
         
-        // Fetch user profile
-        const profile = await fetchUserProfile(currentSession.user.id);
-        setUser(profile);
+        // Fetch user profile (non-blocking - system works even if this fails)
+        try {
+          const profile = await fetchUserProfile(currentSession.user.id);
+          if (profile) {
+            setUser(profile);
+          } else {
+            console.warn('[Auth] No user profile found in database, creating from auth user');
+            // Fallback: create basic user object from Supabase auth user
+            setUser({
+              id: currentSession.user.id,
+              email: currentSession.user.email || '',
+              full_name: currentSession.user.user_metadata?.full_name || 
+                        currentSession.user.email?.split('@')[0] || 
+                        'User',
+              created_at: currentSession.user.created_at || new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            } as User);
+          }
+        } catch (err) {
+          console.error('[Auth] Profile fetch failed, using fallback:', err);
+          // Even if profile fetch fails, create fallback user so app doesn't hang
+          setUser({
+            id: currentSession.user.id,
+            email: currentSession.user.email || '',
+            full_name: currentSession.user.user_metadata?.full_name || 
+                      currentSession.user.email?.split('@')[0] || 
+                      'User',
+            created_at: currentSession.user.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as User);
+        }
         
         // Schedule proactive refresh
         scheduleTokenRefresh(currentSession);
@@ -235,15 +263,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSupabaseUser(newSession.user);
           // Reschedule next refresh
           scheduleTokenRefresh(newSession);
-          // Update user profile on refresh (keep data fresh)
-          const profile = await fetchUserProfile(newSession.user.id);
-          setUser(profile);
+          // Update user profile on refresh (keep data fresh, but don't block)
+          try {
+            const profile = await fetchUserProfile(newSession.user.id);
+            if (profile) setUser(profile);
+          } catch (err) {
+            console.warn('[Auth] Profile fetch failed on refresh:', err);
+          }
         } else if (event === 'SIGNED_IN' && newSession) {
           console.log('[Auth] User signed in');
           setSession(newSession);
           setSupabaseUser(newSession.user);
-          const profile = await fetchUserProfile(newSession.user.id);
-          setUser(profile);
+          // Fetch profile or create fallback
+          try {
+            const profile = await fetchUserProfile(newSession.user.id);
+            if (profile) {
+              setUser(profile);
+            } else {
+              setUser({
+                id: newSession.user.id,
+                email: newSession.user.email || '',
+                full_name: newSession.user.user_metadata?.full_name || 
+                          newSession.user.email?.split('@')[0] || 
+                          'User',
+                created_at: newSession.user.created_at || new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              } as User);
+            }
+          } catch (err) {
+            console.error('[Auth] Profile fetch failed on sign in:', err);
+            setUser({
+              id: newSession.user.id,
+              email: newSession.user.email || '',
+              full_name: newSession.user.user_metadata?.full_name || 
+                        newSession.user.email?.split('@')[0] || 
+                        'User',
+              created_at: newSession.user.created_at || new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            } as User);
+          }
           scheduleTokenRefresh(newSession);
         } else if (!newSession) {
           console.log('[Auth] No session in auth state change');
@@ -283,8 +341,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(data.session);
       setSupabaseUser(data.user);
       
-      const profile = await fetchUserProfile(data.user.id);
-      setUser(profile);
+      // Fetch profile or create fallback
+      try {
+        const profile = await fetchUserProfile(data.user.id);
+        if (profile) {
+          setUser(profile);
+        } else {
+          console.warn('[Auth] No profile found on sign in, creating fallback');
+          setUser({
+            id: data.user.id,
+            email: data.user.email || '',
+            full_name: data.user.user_metadata?.full_name || 
+                      data.user.email?.split('@')[0] || 
+                      'User',
+            created_at: data.user.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as User);
+        }
+      } catch (err) {
+        console.error('[Auth] Profile fetch error on sign in:', err);
+        setUser({
+          id: data.user.id,
+          email: data.user.email || '',
+          full_name: data.user.user_metadata?.full_name || 
+                    data.user.email?.split('@')[0] || 
+                    'User',
+          created_at: data.user.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as User);
+      }
       
       // Schedule refresh
       scheduleTokenRefresh(data.session);
