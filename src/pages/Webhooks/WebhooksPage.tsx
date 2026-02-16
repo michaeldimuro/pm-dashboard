@@ -16,7 +16,7 @@ const EVENT_TYPES: { value: WebhookEventType; label: string; description: string
 ];
 
 export function WebhooksPage() {
-  const { user, authReady } = useAuth();
+  const { user } = useAuth();
   const [webhooks, setWebhooks] = useState<WebhookSubscription[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -27,8 +27,8 @@ export function WebhooksPage() {
 
   useEffect(() => {
     // Wait for authReady to prevent AbortError from race conditions
-    if (user && authReady) fetchWebhooks();
-  }, [user, authReady]);
+    if (user) fetchWebhooks();
+  }, [user]);
 
   const fetchWebhooks = async () => {
     setLoading(true);

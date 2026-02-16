@@ -58,7 +58,7 @@ interface RejectionState {
 
 export function KanbanBoard() {
   const { currentBusiness, businesses, getBusinessName } = useBusiness();
-  const { user, authReady } = useAuth();
+  const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | 'all'>('all');
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -111,7 +111,7 @@ export function KanbanBoard() {
     
     // CRITICAL: Wait for authReady before making any queries
     // This prevents AbortError from race conditions with auth state changes
-    if (user && authReady) {
+    if (user) {
       console.log('[Kanban] ✓ Auth is ready, fetching projects and tasks...');
       fetchProjects();
       fetchAllTasks();
@@ -120,7 +120,7 @@ export function KanbanBoard() {
     } else {
       console.log('[Kanban] No user yet, waiting...');
     }
-  }, [user, authReady]);
+  }, [user]);
 
   const fetchProjects = async () => {
     // Fetch all projects across all businesses

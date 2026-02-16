@@ -15,7 +15,7 @@ const NOTE_COLORS = [
 ];
 
 export function NotesPage() {
-  const { user, authReady } = useAuth();
+  const { user } = useAuth();
   const { businesses, getBusinessName } = useBusiness();
   const [notes, setNotes] = useState<Note[]>([]);
   const [links, setLinks] = useState<NoteLink[]>([]);
@@ -35,11 +35,11 @@ export function NotesPage() {
 
   useEffect(() => {
     // Wait for authReady to prevent AbortError from race conditions
-    if (user && authReady) {
+    if (user) {
       fetchNotes();
       fetchLinks();
     }
-  }, [user, authReady]);
+  }, [user]);
 
   const fetchNotes = async () => {
     setLoading(true);

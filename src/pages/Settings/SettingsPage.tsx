@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
 export function SettingsPage() {
-  const { user, authReady } = useAuth();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
   const [saving, setSaving] = useState(false);
 

@@ -19,7 +19,7 @@ import { supabase } from '@/lib/supabase';
 import type { CalendarEvent, Business } from '@/types';
 
 export function CalendarPage() {
-  const { user, authReady } = useAuth();
+  const { user } = useAuth();
   const { businesses, getBusinessColor } = useBusiness();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -38,10 +38,10 @@ export function CalendarPage() {
 
   useEffect(() => {
     // Wait for authReady to prevent AbortError from race conditions
-    if (user && authReady) {
+    if (user) {
       fetchEvents();
     }
-  }, [user, authReady, currentDate]);
+  }, [user, currentDate]);
 
   const fetchEvents = async () => {
     setLoading(true);

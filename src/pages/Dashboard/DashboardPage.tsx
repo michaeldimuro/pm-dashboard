@@ -35,7 +35,7 @@ interface BusinessStats {
 
 export function DashboardPage() {
   const { businesses, getBusinessName, getBusinessColor } = useBusiness();
-  const { user, authReady } = useAuth();
+  const { user } = useAuth();
   const [stats, setStats] = useState<Stats>({
     totalTasks: 0,
     completedTasks: 0,
@@ -56,7 +56,7 @@ export function DashboardPage() {
     
     // CRITICAL: Wait for authReady before making any queries
     // This prevents AbortError from race conditions with auth state changes
-    if (user && authReady) {
+    if (user) {
       console.log('[Dashboard] ✓ Auth is ready, fetching data...');
       fetchDashboardData();
     } else if (user && !authReady) {
@@ -69,13 +69,13 @@ export function DashboardPage() {
     const timeout = setTimeout(() => {
       if (loading) {
         console.warn('[Dashboard] ⚠️ Loading timeout (10s), stopping loading state');
-        console.warn('[Dashboard] State at timeout:', { user: !!user, authReady });
+        console.warn('[Dashboard] State at timeout:', { user: !!user });
         setLoading(false);
       }
     }, 10000);
     
     return () => clearTimeout(timeout);
-  }, [user, authReady, loading]);
+  }, [user, loading]);
 
   const fetchDashboardData = async () => {
     console.log('[Dashboard] fetchDashboardData called, user.id:', user?.id);

@@ -93,6 +93,11 @@ export const OperationsRoom = React.memo(() => {
         </div>
       </div>
       
+      {/* Debug: Show data status (always show for debugging) */}
+      <div className="bg-gray-800 text-xs font-mono p-2 text-gray-400 border-b border-gray-700">
+        <span className="text-cyan-400">DEBUG:</span> mainAgent: {mainAgent?.name || 'null'} | subAgents: {subAgentCount} | events: {liveFeed.length} | connected: {connectionStatus.isConnected ? 'yes' : 'no'}
+      </div>
+      
       {/* Main content area */}
       {viewMode === 'pixel' ? (
         <div className="flex-1 overflow-hidden p-6">

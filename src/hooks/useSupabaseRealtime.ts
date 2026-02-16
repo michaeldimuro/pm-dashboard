@@ -137,17 +137,15 @@ function mapDbStatusToSubAgentStatus(dbStatus: string): 'spawned' | 'active' | '
  */
 export function useSupabaseRealtime() {
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const initRef = useRef(false);
   
   // Get store state directly (not actions that cause re-renders)
   const isConnected = useOperationsStore((state) => state.isConnected);
   const connectionError = useOperationsStore((state) => state.connectionError);
 
   useEffect(() => {
-    // Prevent double initialization in React strict mode
-    if (initRef.current) return;
-    initRef.current = true;
-
+    // Abort controller for cleanup
+    const abortController = new AbortController();
+    
     console.log('[SupabaseRealtime] Initializing...');
 
     // Get store actions (stable references via getState)
@@ -167,6 +165,12 @@ export function useSupabaseRealtime() {
           .in('status', ['initiated', 'active', 'idle'])
           .order('created_at', { ascending: false })
           .limit(50);
+
+        // Check if aborted before updating state
+        if (abortController.signal.aborted) {
+          console.log('[SupabaseRealtime] Aborted, skipping session updates');
+          return;
+        }
 
         if (sessionsError) {
           console.error('[SupabaseRealtime] Error fetching sessions:', sessionsError);
@@ -188,6 +192,12 @@ export function useSupabaseRealtime() {
           .select('*')
           .order('triggered_at', { ascending: false })
           .limit(50);
+
+        // Check if aborted before updating state
+        if (abortController.signal.aborted) {
+          console.log('[SupabaseRealtime] Aborted, skipping event updates');
+          return;
+        }
 
         if (eventsError) {
           console.error('[SupabaseRealtime] Error fetching events:', eventsError);
@@ -302,11 +312,11 @@ export function useSupabaseRealtime() {
     // Cleanup on unmount
     return () => {
       console.log('[SupabaseRealtime] Cleaning up...');
+      abortController.abort();
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
-      initRef.current = false;
     };
   }, []); // Empty deps - only run once
 

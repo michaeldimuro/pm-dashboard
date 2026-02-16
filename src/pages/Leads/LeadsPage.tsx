@@ -30,7 +30,7 @@ const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bgColor:
 const SOURCES = ['Website', 'Referral', 'ANGI', 'Cold Call', 'Social Media', 'Other'];
 
 export function LeadsPage() {
-  const { user, authReady } = useAuth();
+  const { user } = useAuth();
   const { businesses, getBusinessName, getBusinessColor } = useBusiness();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,10 +56,10 @@ export function LeadsPage() {
 
   useEffect(() => {
     // Wait for authReady to prevent AbortError from race conditions
-    if (user && authReady) {
+    if (user) {
       fetchLeads();
     }
-  }, [user, authReady, sortBy, sortDir]);
+  }, [user, sortBy, sortDir]);
 
   const fetchLeads = async () => {
     setLoading(true);
