@@ -1,37 +1,23 @@
 /**
  * Operations Room WebSocket Hook
- * SIMPLIFIED VERSION - No WebSocket backend needed, just mock data for UI
+ * Now uses Supabase Realtime instead of custom WebSocket
  */
 
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useSupabaseRealtime } from './useSupabaseRealtime';
 
-// Simplified - no WebSocket connection, just return mock state
-const RECONNECT_DELAY_MS = 1000;
-const MAX_RECONNECT_DELAY_MS = 30000;
-
+/**
+ * Hook for Operations Room realtime connection
+ * Wraps useSupabaseRealtime to maintain backwards compatibility
+ */
 export function useOperationRoomWebSocket() {
-  const { session } = useAuth();
-  const [isConnected, setIsConnected] = useState(false);
-
-  // Simplified - just simulate "connected" state for UI
-  useEffect(() => {
-    console.log('[OperationsRoom] Mock connection (no backend yet)');
-    // Simulate connection after a brief delay
-    const timer = setTimeout(() => {
-      setIsConnected(true);
-    }, 500);
-
-    return () => {
-      clearTimeout(timer);
-      setIsConnected(false);
-    };
-  }, [session]);
+  const { isConnected, error } = useSupabaseRealtime();
 
   return {
     isConnected,
+    error,
     sendMessage: () => {
-      console.log('[OperationsRoom] sendMessage called (no-op, no backend)');
+      // No-op - events are logged via API endpoint
+      console.log('[OperationsRoom] sendMessage called (use API endpoint instead)');
     },
   };
 }

@@ -64,6 +64,9 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   return (
     <Routes>
+      {/* Operations Room - Public for testing (TODO: add auth later) */}
+      <Route path="/ops-test" element={<OperationsPage />} />
+      
       <Route
         path="/login"
         element={
