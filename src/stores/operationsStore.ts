@@ -184,6 +184,23 @@ export const useCompletedSubAgents = () =>
   );
 
 /**
+ * Combined selector for OperationsRoom component
+ * Prevents multiple hook calls that can cause hooks ordering violations
+ */
+export const useOperationsRoomData = () =>
+  useOperationsStore((state) => ({
+    mainAgent: state.mainAgent,
+    subAgents: state.subAgents,
+    taskFlow: state.taskFlow,
+    liveFeed: state.liveFeed,
+    connectionStatus: {
+      isConnected: state.isConnected,
+      error: state.connectionError,
+    },
+    subAgentCount: Object.keys(state.subAgents).length,
+  }));
+
+/**
  * Batch updates utility
  */
 export const batchUpdateOperations = (updates: {

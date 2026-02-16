@@ -5,16 +5,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useOperationRoomWebSocket } from '@/hooks/useOperationRoomWebSocket';
-import {
-  useOperationsStore,
-  useMainAgent,
-  useSubAgents,
-  useTaskFlow,
-  useLiveFeed,
-  useConnectionStatus,
-  useSubAgentCount,
-  useActiveSubAgents,
-} from '@/stores/operationsStore';
+import { useOperationsRoomData } from '@/stores/operationsStore';
 import { OperationsHeader } from './OperationsHeader';
 import { MainAgentPanel } from './MainAgentPanel';
 import { SubAgentGrid } from './SubAgentGrid';
@@ -33,14 +24,9 @@ export const OperationsRoom = React.memo(() => {
   // View mode toggle
   const [viewMode, setViewMode] = useState<'pixel' | 'panels'>('pixel');
   
-  // Get state from store using selectors
-  const mainAgent = useMainAgent();
-  const subAgents = useSubAgents();
-  const taskFlow = useTaskFlow();
-  const liveFeed = useLiveFeed();
-  const connectionStatus = useConnectionStatus();
-  const activeSubAgents = useActiveSubAgents();
-  const subAgentCount = useSubAgentCount();
+  // Get all state from store using single combined selector (prevents hooks ordering issues)
+  const { mainAgent, subAgents, taskFlow, liveFeed, connectionStatus, subAgentCount } = 
+    useOperationsRoomData();
   
   // Calculate metrics
   const eventRate = useMemo(() => {
