@@ -228,14 +228,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('[Auth] ✓ Valid session established');
         console.log('[Auth] Setting session state...');
         
-        // CRITICAL: Explicitly set the session on the Supabase client
-        // This ensures the client uses the validated session for all queries
-        console.log('[Auth] Setting session on Supabase client...');
-        await supabase.auth.setSession({
-          access_token: currentSession.access_token,
-          refresh_token: currentSession.refresh_token,
-        });
-        console.log('[Auth] Supabase client session set');
+        // Don't explicitly set session - it's already loaded by getSession()
+        // Calling setSession() aborts all pending queries
         
         setSession(currentSession);
         setSupabaseUser(currentSession.user);
@@ -353,6 +347,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } else if (event === 'SIGNED_IN' && newSession) {
           console.log('[Auth] User signed in');
+          
+          // Small delay to let session fully stabilize before making queries
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           setSession(newSession);
           setSupabaseUser(newSession.user);
           // Fetch profile or create fallback
@@ -417,50 +415,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log('[Auth] Sign in successful');
       
-      // CRITICAL: Explicitly set session on Supabase client
-      await supabase.auth.setSession({
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-      });
-      console.log('[Auth] Supabase client session set after sign in');
-      
-      // State will be updated by onAuthStateChange listener
-      // But set immediately for faster UI response
-      setSession(data.session);
-      setSupabaseUser(data.user);
-      
-      // Fetch profile or create fallback
-      try {
-        const profile = await fetchUserProfile(data.user.id);
-        if (profile) {
-          setUser(profile);
-        } else {
-          console.warn('[Auth] No profile found on sign in, creating fallback');
-          setUser({
-            id: data.user.id,
-            email: data.user.email || '',
-            full_name: data.user.user_metadata?.full_name || 
-                      data.user.email?.split('@')[0] || 
-                      'User',
-            created_at: data.user.created_at || new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          } as User);
-        }
-      } catch (err) {
-        console.error('[Auth] Profile fetch error on sign in:', err);
-        setUser({
-          id: data.user.id,
-          email: data.user.email || '',
-          full_name: data.user.user_metadata?.full_name || 
-                    data.user.email?.split('@')[0] || 
-                    'User',
-          created_at: data.user.created_at || new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        } as User);
-      }
-      
-      // Schedule refresh
-      scheduleTokenRefresh(data.session);
+      // Don't set state here - let onAuthStateChange handle it
+      // This avoids duplicate work and conflicting async operations
+      console.log('[Auth] Waiting for onAuthStateChange to handle session setup...');
 
       return { success: true };
     } catch (err) {
