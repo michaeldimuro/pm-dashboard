@@ -43,8 +43,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Initialize: check for existing session
   useEffect(() => {
     const initialize = async () => {
+      // Set timeout to prevent indefinite loading spinner
+      const timeoutId = setTimeout(() => {
+        console.warn('[Auth] Session check timeout, clearing cached auth');
+        // Clear any cached auth data on timeout
+        const authKeys = Object.keys(localStorage).filter(key => 
+          key.startsWith('sb-') || key.includes('supabase')
+        );
+        authKeys.forEach(key => localStorage.removeItem(key));
+        setLoading(false);
+      }, 5000); // 5 second timeout
+
       try {
         const { data: { session: existingSession }, error } = await supabase.auth.getSession();
+        
+        clearTimeout(timeoutId);
         
         if (error) {
           console.error('[Auth] Session error:', error);
@@ -75,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         
       } catch (err) {
+        clearTimeout(timeoutId);
         console.error('[Auth] Init error:', err);
         // Clear any cached auth data on error
         const authKeys = Object.keys(localStorage).filter(key => 
