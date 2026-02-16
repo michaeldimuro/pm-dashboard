@@ -78,9 +78,7 @@ export function TaskCard({ task, onClick, isDragging, onStatusChange, isMobile =
       style={style}
       {...attributes}
       {...(!isMobile ? listeners : {})}
-      className={`bg-[#1a1a3a] rounded-lg p-4 border border-[#2a2a4a] transition-all card-glow relative ${
-        isMobile ? 'cursor-pointer' : 'cursor-grab'
-      } hover:border-indigo-500/50 ${
+      className={`bg-[#1a1a3a] rounded-lg p-4 border border-[#2a2a4a] transition-all card-glow relative cursor-pointer hover:border-indigo-500/50 ${
         isCurrentlyDragging ? 'opacity-50 shadow-lg ring-2 ring-indigo-500 shadow-indigo-500/20' : ''
       }`}
     >
@@ -142,8 +140,8 @@ export function TaskCard({ task, onClick, isDragging, onStatusChange, isMobile =
         </div>
       )}
 
-      {/* Card content - clickable on mobile */}
-      <div onClick={isMobile ? onClick : undefined}>
+      {/* Card content - clickable on desktop and mobile */}
+      <div onClick={onClick}>
         {/* Top row: Ticket number & Business badge */}
         <div className="flex items-center gap-2 mb-2 flex-wrap pr-8">
         {/* Ticket number */}
