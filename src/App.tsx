@@ -10,6 +10,7 @@ import { NotesPage } from './pages/Notes';
 import { LeadsPage } from './pages/Leads';
 import { WebhooksPage } from './pages/Webhooks';
 import { SettingsPage } from './pages/Settings';
+import { SubcontractorsPage } from './pages/Subcontractors';
 import { OperationsPage } from './pages/Operations/OperationsPage';
 
 function LoadingScreen() {
@@ -89,6 +90,7 @@ function AuthenticatedRoutes() {
         <Route path="/notes" element={<NotesPage />} />
         <Route path="/leads" element={<LeadsPage />} />
         <Route path="/webhooks" element={<WebhooksPage />} />
+        <Route path="/subcontractors" element={<SubcontractorsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
 
