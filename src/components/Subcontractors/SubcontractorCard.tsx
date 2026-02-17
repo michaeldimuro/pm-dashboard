@@ -78,31 +78,31 @@ export default function SubcontractorCard({ subcontractor, onEdit }: Subcontract
     (subcontractor.insurance_expiry && new Date(subcontractor.insurance_expiry) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
 
   return (
-    <div className="bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg p-5 hover:border-blue-500/50 transition-all group relative">
-      {/* Edit Button */}
+    <div className="bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg p-4 sm:p-5 hover:border-blue-500/50 transition-all group relative">
+      {/* Edit Button - Always visible on mobile */}
       <button
         onClick={() => onEdit(subcontractor)}
-        className="absolute top-4 right-4 p-2 bg-[#0f0f23] border border-[#2a2a4a] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity hover:border-blue-500"
+        className="absolute top-3 sm:top-4 right-3 sm:right-4 p-2 bg-[#0f0f23] border border-[#2a2a4a] rounded-lg sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:border-blue-500 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
       >
         <Edit size={16} className="text-gray-400" />
       </button>
 
       {/* Attention Badge */}
       {needsAttention && (
-        <div className="absolute top-4 right-16 px-2 py-1 bg-orange-500/20 border border-orange-500/50 rounded-md flex items-center gap-1">
-          <AlertCircle size={14} className="text-orange-400" />
-          <span className="text-xs text-orange-400">Attention</span>
+        <div className="absolute top-3 sm:top-4 right-14 sm:right-16 px-2 py-1 bg-orange-500/20 border border-orange-500/50 rounded-md flex items-center gap-1">
+          <AlertCircle size={12} className="text-orange-400 sm:w-3.5 sm:h-3.5" />
+          <span className="text-xs text-orange-400 hidden sm:inline">Attention</span>
         </div>
       )}
 
       {/* Header */}
-      <div className="mb-4">
+      <div className="mb-3 sm:mb-4 pr-10 sm:pr-12">
         <div className="flex items-start gap-3">
-          <div className="text-3xl">{getSpecialtyIcon(subcontractor.specialty)}</div>
-          <div className="flex-1">
-            <h3 className="text-xl font-semibold text-white">{subcontractor.name}</h3>
+          <div className="text-2xl sm:text-3xl">{getSpecialtyIcon(subcontractor.specialty)}</div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-lg sm:text-xl font-semibold text-white truncate">{subcontractor.name}</h3>
             {subcontractor.company_name && (
-              <p className="text-sm text-gray-400">{subcontractor.company_name}</p>
+              <p className="text-sm text-gray-400 truncate">{subcontractor.company_name}</p>
             )}
             <p className="text-xs text-purple-400 capitalize mt-1">{subcontractor.specialty}</p>
           </div>
@@ -110,9 +110,9 @@ export default function SubcontractorCard({ subcontractor, onEdit }: Subcontract
       </div>
 
       {/* Rating */}
-      <div className="mb-4">
+      <div className="mb-3 sm:mb-4">
         {renderStarRating(subcontractor.quality_rating)}
-        <div className="flex items-center gap-4 mt-2 text-sm">
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-2 text-xs sm:text-sm">
           <div className="flex items-center gap-1">
             <Award size={14} className="text-blue-400" />
             <span className="text-gray-400">Reliability:</span>
@@ -125,7 +125,7 @@ export default function SubcontractorCard({ subcontractor, onEdit }: Subcontract
       </div>
 
       {/* Availability Status */}
-      <div className={`px-3 py-2 rounded-lg border mb-4 ${getAvailabilityColor(subcontractor.availability_status)}`}>
+      <div className={`px-3 py-2 rounded-lg border mb-3 sm:mb-4 ${getAvailabilityColor(subcontractor.availability_status)}`}>
         <div className="flex items-center gap-2">
           {subcontractor.availability_status === 'available' && <CheckCircle size={16} />}
           {subcontractor.availability_status === 'busy' && <Clock size={16} />}
@@ -137,26 +137,28 @@ export default function SubcontractorCard({ subcontractor, onEdit }: Subcontract
         </div>
       </div>
 
-      {/* Contact Info */}
-      <div className="space-y-2 mb-4">
-        <div className="flex items-center gap-2 text-sm">
-          <Phone size={14} className="text-gray-400" />
-          <a href={`tel:${subcontractor.phone}`} className="text-blue-400 hover:text-blue-300">
-            {subcontractor.phone}
-          </a>
-        </div>
+      {/* Contact Info - Touch-friendly links */}
+      <div className="space-y-2 mb-3 sm:mb-4">
+        <a 
+          href={`tel:${subcontractor.phone}`}
+          className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 py-1 -mx-1 px-1 rounded touch-manipulation"
+        >
+          <Phone size={14} className="flex-shrink-0" />
+          <span className="truncate">{subcontractor.phone}</span>
+        </a>
         {subcontractor.email && (
-          <div className="flex items-center gap-2 text-sm">
-            <Mail size={14} className="text-gray-400" />
-            <a href={`mailto:${subcontractor.email}`} className="text-blue-400 hover:text-blue-300">
-              {subcontractor.email}
-            </a>
-          </div>
+          <a
+            href={`mailto:${subcontractor.email}`}
+            className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 py-1 -mx-1 px-1 rounded touch-manipulation"
+          >
+            <Mail size={14} className="flex-shrink-0" />
+            <span className="truncate">{subcontractor.email}</span>
+          </a>
         )}
         {subcontractor.city && (
-          <div className="flex items-center gap-2 text-sm">
-            <MapPin size={14} className="text-gray-400" />
-            <span className="text-gray-300">
+          <div className="flex items-center gap-2 text-sm py-1">
+            <MapPin size={14} className="text-gray-400 flex-shrink-0" />
+            <span className="text-gray-300 truncate">
               {subcontractor.city}{subcontractor.state ? `, ${subcontractor.state}` : ''}
             </span>
           </div>
@@ -165,31 +167,31 @@ export default function SubcontractorCard({ subcontractor, onEdit }: Subcontract
 
       {/* Rates */}
       {subcontractor.hourly_rate && (
-        <div className="flex items-center gap-2 mb-4 text-sm">
-          <DollarSign size={14} className="text-green-400" />
+        <div className="flex items-center gap-2 mb-3 sm:mb-4 text-xs sm:text-sm">
+          <DollarSign size={14} className="text-green-400 flex-shrink-0" />
           <span className="text-gray-400">Hourly Rate:</span>
           <span className="text-white font-medium">${subcontractor.hourly_rate}/hr</span>
         </div>
       )}
 
       {/* Certifications */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-2 mb-3 sm:mb-4">
         {subcontractor.licensed && (
           <div className="flex items-center gap-1 px-2 py-1 bg-blue-500/20 border border-blue-500/50 rounded text-xs text-blue-400">
             <Shield size={12} />
-            Licensed
+            <span>Licensed</span>
           </div>
         )}
         {subcontractor.insured && (
           <div className="flex items-center gap-1 px-2 py-1 bg-green-500/20 border border-green-500/50 rounded text-xs text-green-400">
             <Shield size={12} />
-            Insured
+            <span>Insured</span>
           </div>
         )}
         {subcontractor.bonded && (
           <div className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 border border-purple-500/50 rounded text-xs text-purple-400">
             <Shield size={12} />
-            Bonded
+            <span>Bonded</span>
           </div>
         )}
       </div>
@@ -215,8 +217,8 @@ export default function SubcontractorCard({ subcontractor, onEdit }: Subcontract
 
       {/* Notes Preview */}
       {subcontractor.notes && (
-        <div className="mt-4 pt-4 border-t border-[#2a2a4a]">
-          <p className="text-sm text-gray-400 line-clamp-2">{subcontractor.notes}</p>
+        <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-[#2a2a4a]">
+          <p className="text-xs sm:text-sm text-gray-400 line-clamp-2">{subcontractor.notes}</p>
         </div>
       )}
     </div>

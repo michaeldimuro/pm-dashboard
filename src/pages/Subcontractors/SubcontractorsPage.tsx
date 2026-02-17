@@ -119,109 +119,122 @@ export default function SubcontractorsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a1a] text-white p-6">
+    <div className="min-h-screen bg-[#0a0a1a] text-white p-4 sm:p-6">
       {/* Header */}
-      <div className="max-w-7xl mx-auto mb-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-7xl mx-auto mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">
               Sub-Contractors
             </h1>
-            <p className="text-gray-400 mt-2">Manage your trusted network of trade professionals</p>
+            <p className="text-gray-400 mt-1 sm:mt-2 text-sm sm:text-base">Manage your trusted network of trade professionals</p>
           </div>
           <button
             onClick={handleAddNew}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all"
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all touch-manipulation min-h-[44px]"
           >
             <Plus size={20} />
-            Add Contractor
+            <span className="font-medium">Add Contractor</span>
           </button>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg p-4">
-            <div className="text-gray-400 text-sm">Total Contractors</div>
-            <div className="text-3xl font-bold text-white mt-1">{stats.total}</div>
+        {/* Stats Cards - Mobile: 2x2, Tablet+: 4 columns */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+          <div className="bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg p-3 sm:p-4">
+            <div className="text-gray-400 text-xs sm:text-sm">Total Contractors</div>
+            <div className="text-2xl sm:text-3xl font-bold text-white mt-1">{stats.total}</div>
           </div>
-          <div className="bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg p-4">
-            <div className="text-gray-400 text-sm">Available Now</div>
-            <div className="text-3xl font-bold text-green-400 mt-1">{stats.available}</div>
+          <div className="bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg p-3 sm:p-4">
+            <div className="text-gray-400 text-xs sm:text-sm">Available Now</div>
+            <div className="text-2xl sm:text-3xl font-bold text-green-400 mt-1">{stats.available}</div>
           </div>
-          <div className="bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg p-4">
-            <div className="text-gray-400 text-sm">Top Rated (4.5+)</div>
-            <div className="text-3xl font-bold text-yellow-400 mt-1">{stats.topRated}</div>
+          <div className="bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg p-3 sm:p-4">
+            <div className="text-gray-400 text-xs sm:text-sm">Top Rated (4.5+)</div>
+            <div className="text-2xl sm:text-3xl font-bold text-yellow-400 mt-1">{stats.topRated}</div>
           </div>
-          <div className="bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg p-4">
-            <div className="text-gray-400 text-sm flex items-center gap-1">
-              <AlertCircle size={14} />
-              Needs Attention
+          <div className="bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg p-3 sm:p-4">
+            <div className="text-gray-400 text-xs sm:text-sm flex items-center gap-1">
+              <AlertCircle size={12} className="sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">Needs Attention</span>
+              <span className="sm:hidden">Alerts</span>
             </div>
-            <div className="text-3xl font-bold text-orange-400 mt-1">{stats.needsAttention}</div>
+            <div className="text-2xl sm:text-3xl font-bold text-orange-400 mt-1">{stats.needsAttention}</div>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg p-4 mb-6">
-          <div className="flex items-center gap-4 flex-wrap">
-            {/* Search */}
-            <div className="flex-1 min-w-[300px] relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+        {/* Filters - Stack on mobile */}
+        <div className="bg-[#1a1a3a] border border-[#2a2a4a] rounded-lg p-3 sm:p-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            {/* Search - Full width on mobile */}
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
               <input
                 type="text"
-                placeholder="Search by name, company, or specialty..."
+                placeholder="Search contractors..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-[#0f0f23] border border-[#2a2a4a] rounded-lg text-white focus:outline-none focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-3 bg-[#0f0f23] border border-[#2a2a4a] rounded-lg text-white focus:outline-none focus:border-blue-500 text-base touch-manipulation"
               />
             </div>
 
-            {/* Specialty Filter */}
-            <div className="flex items-center gap-2">
-              <Filter size={20} className="text-gray-400" />
-              <select
-                value={filterSpecialty}
-                onChange={(e) => setFilterSpecialty(e.target.value)}
-                className="px-4 py-2 bg-[#0f0f23] border border-[#2a2a4a] rounded-lg text-white focus:outline-none focus:border-blue-500 capitalize"
-              >
-                {specialties.map(spec => (
-                  <option key={spec} value={spec} className="capitalize">
-                    {spec === 'all' ? 'All Specialties' : spec}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Filters row on mobile */}
+            <div className="flex gap-2 sm:gap-3">
+              {/* Specialty Filter */}
+              <div className="flex-1 sm:flex-none flex items-center gap-2">
+                <Filter size={18} className="text-gray-400 hidden sm:block" />
+                <select
+                  value={filterSpecialty}
+                  onChange={(e) => setFilterSpecialty(e.target.value)}
+                  className="w-full sm:w-auto px-3 sm:px-4 py-3 bg-[#0f0f23] border border-[#2a2a4a] rounded-lg text-white focus:outline-none focus:border-blue-500 capitalize text-sm sm:text-base touch-manipulation"
+                >
+                  {specialties.map(spec => (
+                    <option key={spec} value={spec} className="capitalize">
+                      {spec === 'all' ? 'All Specialties' : spec}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            {/* Availability Filter */}
-            <div>
-              <select
-                value={filterAvailability}
-                onChange={(e) => setFilterAvailability(e.target.value)}
-                className="px-4 py-2 bg-[#0f0f23] border border-[#2a2a4a] rounded-lg text-white focus:outline-none focus:border-blue-500 capitalize"
-              >
-                {availabilityOptions.map(status => (
-                  <option key={status} value={status} className="capitalize">
-                    {status === 'all' ? 'All Status' : status}
-                  </option>
-                ))}
-              </select>
+              {/* Availability Filter */}
+              <div className="flex-1 sm:flex-none">
+                <select
+                  value={filterAvailability}
+                  onChange={(e) => setFilterAvailability(e.target.value)}
+                  className="w-full sm:w-auto px-3 sm:px-4 py-3 bg-[#0f0f23] border border-[#2a2a4a] rounded-lg text-white focus:outline-none focus:border-blue-500 capitalize text-sm sm:text-base touch-manipulation"
+                >
+                  {availabilityOptions.map(status => (
+                    <option key={status} value={status} className="capitalize">
+                      {status === 'all' ? 'All Status' : status}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Contractors Grid */}
+      {/* Contractors Grid - Single column mobile, 2 cols tablet, 3 cols desktop */}
       <div className="max-w-7xl mx-auto">
         {filteredSubs.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-lg">
+          <div className="text-center py-12 px-4">
+            <div className="text-gray-400 text-base sm:text-lg">
               {searchQuery || filterSpecialty !== 'all' || filterAvailability !== 'all'
                 ? 'No contractors match your filters'
                 : 'No contractors yet. Add your first one!'}
             </div>
+            {!searchQuery && filterSpecialty === 'all' && filterAvailability === 'all' && (
+              <button
+                onClick={handleAddNew}
+                className="mt-4 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all touch-manipulation inline-flex items-center gap-2"
+              >
+                <Plus size={20} />
+                Add Your First Contractor
+              </button>
+            )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredSubs.map(sub => (
               <SubcontractorCard
                 key={sub.id}
