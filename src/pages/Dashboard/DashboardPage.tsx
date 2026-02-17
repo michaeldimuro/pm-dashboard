@@ -70,7 +70,7 @@ export function DashboardPage() {
     }, 10000);
     
     return () => clearTimeout(timeout);
-  }, [user, loading]);
+  }, [user]);
 
   const fetchDashboardData = async () => {
     console.log('[Dashboard] fetchDashboardData called, user.id:', user?.id);
