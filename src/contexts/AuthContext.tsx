@@ -348,51 +348,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } else if (event === 'SIGNED_IN' && newSession) {
           console.log('[Auth] User signed in via onAuthStateChange');
-          
-          // Skip if initialization already handled this (to avoid race conditions)
-          if (initializationAttempted.current) {
-            console.log('[Auth] Already initialized, skipping duplicate SIGNED_IN handling');
-            // Just update session in case it changed
-            setSession(newSession);
-            setSupabaseUser(newSession.user);
-            scheduleTokenRefresh(newSession);
-            return;
-          }
-          
-          // Small delay to let session fully stabilize before making queries
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
+
           setSession(newSession);
           setSupabaseUser(newSession.user);
-          // Fetch profile or create fallback
+          scheduleTokenRefresh(newSession);
+
+          // Always set user on SIGNED_IN - even if initialization already ran,
+          // because initialization without an existing session won't have set user
+          const fallbackUser: User = {
+            id: newSession.user.id,
+            email: newSession.user.email || '',
+            full_name: newSession.user.user_metadata?.full_name ||
+                      newSession.user.email?.split('@')[0] ||
+                      'User',
+            created_at: newSession.user.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as User;
+
+          // Set fallback immediately so UI isn't blank
+          setUser(fallbackUser);
+
+          // Then fetch full profile from database (non-blocking upgrade)
           try {
             const profile = await fetchUserProfile(newSession.user.id);
             if (profile) {
               setUser(profile);
-            } else {
-              setUser({
-                id: newSession.user.id,
-                email: newSession.user.email || '',
-                full_name: newSession.user.user_metadata?.full_name || 
-                          newSession.user.email?.split('@')[0] || 
-                          'User',
-                created_at: newSession.user.created_at || new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              } as User);
             }
           } catch (err) {
             console.error('[Auth] Profile fetch failed on sign in:', err);
-            setUser({
-              id: newSession.user.id,
-              email: newSession.user.email || '',
-              full_name: newSession.user.user_metadata?.full_name || 
-                        newSession.user.email?.split('@')[0] || 
-                        'User',
-              created_at: newSession.user.created_at || new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            } as User);
+            // fallbackUser already set above, so UI still works
           }
-          scheduleTokenRefresh(newSession);
         } else if (!newSession) {
           console.log('[Auth] No session in auth state change');
           setSession(null);
