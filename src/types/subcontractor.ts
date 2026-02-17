@@ -89,5 +89,18 @@ export interface SubcontractorReview {
   job_cost?: number | null;
 }
 
+export type SubcontractorDocumentType = 'w9' | 'insurance' | 'contract' | 'license' | 'invoice' | 'other';
+
+export interface SubcontractorDocument {
+  id: string;
+  subcontractor_id: string;
+  document_type: SubcontractorDocumentType;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  uploaded_at: string;
+  uploaded_by_user_id?: string | null;
+}
+
 export type SubcontractorSpecialty = Subcontractor['specialty'];
 export type SubcontractorAvailability = Subcontractor['availability_status'];

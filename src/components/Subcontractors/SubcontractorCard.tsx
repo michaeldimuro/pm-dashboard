@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Star,
   Phone,
@@ -12,15 +12,51 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+  Download,
 } from 'lucide-react';
-import type { Subcontractor } from '@/types/subcontractor';
+import { supabase } from '@/lib/supabase';
+import type { Subcontractor, SubcontractorDocument, SubcontractorDocumentType } from '@/types/subcontractor';
 
 interface SubcontractorCardProps {
   subcontractor: Subcontractor;
   onEdit: (sub: Subcontractor) => void;
 }
 
+const documentTypeLabels: Record<SubcontractorDocumentType, string> = {
+  w9: 'W-9',
+  insurance: 'Insurance',
+  contract: 'Contract',
+  license: 'License',
+  invoice: 'Invoice',
+  other: 'Other',
+};
+
 export default function SubcontractorCard({ subcontractor, onEdit }: SubcontractorCardProps) {
+  const [documents, setDocuments] = useState<SubcontractorDocument[]>([]);
+  const [docsOpen, setDocsOpen] = useState(false);
+  const [docsLoaded, setDocsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (docsOpen && !docsLoaded) {
+      const loadDocs = async () => {
+        const { data } = await supabase
+          .from('subcontractor_documents')
+          .select('*')
+          .eq('subcontractor_id', subcontractor.id)
+          .order('uploaded_at', { ascending: false });
+
+        if (data) {
+          setDocuments(data);
+          setDocsLoaded(true);
+        }
+      };
+      loadDocs();
+    }
+  }, [docsOpen, docsLoaded, subcontractor.id]);
+
   const getAvailabilityColor = (status: string) => {
     switch (status) {
       case 'available':

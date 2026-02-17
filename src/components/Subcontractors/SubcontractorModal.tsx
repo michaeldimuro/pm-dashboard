@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { X, Save, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Save, Trash2, Upload, FileText, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Subcontractor } from '@/types/subcontractor';
+import type { Subcontractor, SubcontractorDocument, SubcontractorDocumentType } from '@/types/subcontractor';
 
 interface SubcontractorModalProps {
   subcontractor: Subcontractor | null;
@@ -38,6 +38,124 @@ export default function SubcontractorModal({ subcontractor, onClose }: Subcontra
     zip_code: '',
     payment_terms: '',
   });
+
+  // Document upload state
+  const [documents, setDocuments] = useState<SubcontractorDocument[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [documentType, setDocumentType] = useState<SubcontractorDocumentType>('other');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const documentTypeLabels: Record<SubcontractorDocumentType, string> = {
+    w9: 'W-9',
+    insurance: 'Insurance',
+    contract: 'Contract',
+    license: 'License',
+    invoice: 'Invoice',
+    other: 'Other',
+  };
+
+  // Load existing documents when editing
+  useEffect(() => {
+    if (subcontractor) {
+      const loadDocuments = async () => {
+        const { data, error } = await supabase
+          .from('subcontractor_documents')
+          .select('*')
+          .eq('subcontractor_id', subcontractor.id)
+          .order('uploaded_at', { ascending: false });
+
+        if (!error && data) {
+          setDocuments(data);
+        }
+      };
+      loadDocuments();
+    }
+  }, [subcontractor]);
+
+  const handleFileUpload = async (files: FileList) => {
+    if (!subcontractor) {
+      alert('Please save the sub-contractor first before uploading documents.');
+      return;
+    }
+
+    setUploadingFiles(true);
+    try {
+      for (const file of Array.from(files)) {
+        const filePath = `${subcontractor.id}/${documentType}/${file.name}`;
+
+        // Upload to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from('subcontractor-documents')
+          .upload(filePath, file, { upsert: true });
+
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          alert(`Failed to upload ${file.name}: ${uploadError.message}`);
+          continue;
+        }
+
+        // Save metadata to subcontractor_documents table
+        const { data: docData, error: dbError } = await supabase
+          .from('subcontractor_documents')
+          .insert({
+            subcontractor_id: subcontractor.id,
+            document_type: documentType,
+            file_name: file.name,
+            file_path: filePath,
+            file_size: file.size,
+            uploaded_by_user_id: user?.id || null,
+          })
+          .select()
+          .single();
+
+        if (dbError) {
+          console.error('DB error:', dbError);
+          alert(`Failed to save metadata for ${file.name}: ${dbError.message}`);
+          continue;
+        }
+
+        if (docData) {
+          setDocuments((prev) => [docData, ...prev]);
+        }
+      }
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      alert('Failed to upload files. Please try again.');
+    } finally {
+      setUploadingFiles(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteDocument = async (doc: SubcontractorDocument) => {
+    if (!confirm(`Delete "${doc.file_name}"?`)) return;
+
+    try {
+      // Delete from storage
+      await supabase.storage
+        .from('subcontractor-documents')
+        .remove([doc.file_path]);
+
+      // Delete metadata
+      const { error } = await supabase
+        .from('subcontractor_documents')
+        .delete()
+        .eq('id', doc.id);
+
+      if (error) throw error;
+
+      setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      alert('Failed to delete document.');
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   useEffect(() => {
     if (subcontractor) {
@@ -460,6 +578,104 @@ export default function SubcontractorModal({ subcontractor, onClose }: Subcontra
               </div>
             </div>
           </div>
+
+          {/* Documents */}
+          {subcontractor && (
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-4">Documents</h3>
+
+              {/* Upload Controls */}
+              <div className="flex flex-wrap items-end gap-3 mb-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Document Type</label>
+                  <select
+                    value={documentType}
+                    onChange={(e) => setDocumentType(e.target.value as SubcontractorDocumentType)}
+                    className="px-4 py-2 bg-[#0f0f23] border border-[#2a2a4a] rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  >
+                    {Object.entries(documentTypeLabels).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+                    className="hidden"
+                    id="doc-upload"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFiles}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#0f0f23] border border-[#2a2a4a] rounded-lg text-white hover:border-blue-500 transition-colors disabled:opacity-50"
+                  >
+                    {uploadingFiles ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Upload size={16} />
+                    )}
+                    {uploadingFiles ? 'Uploading...' : 'Upload Files'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Document List */}
+              {documents.length > 0 ? (
+                <div className="space-y-2">
+                  {documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center justify-between p-3 bg-[#0f0f23] border border-[#2a2a4a] rounded-lg"
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <FileText size={18} className="text-blue-400 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm text-white truncate">{doc.file_name}</p>
+                          <p className="text-xs text-gray-400">
+                            {documentTypeLabels[doc.document_type]} &middot; {formatFileSize(doc.file_size)} &middot; {new Date(doc.uploaded_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const { data } = await supabase.storage
+                              .from('subcontractor-documents')
+                              .createSignedUrl(doc.file_path, 60);
+                            if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+                          }}
+                          className="px-3 py-1 text-xs text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded hover:border-blue-500 transition-colors"
+                        >
+                          Download
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteDocument(doc)}
+                          className="p-1 text-red-400 hover:text-red-300 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 italic">No documents uploaded yet.</p>
+              )}
+            </div>
+          )}
+
+          {!subcontractor && (
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-2">Documents</h3>
+              <p className="text-sm text-gray-400">Save the sub-contractor first, then edit to upload documents.</p>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex items-center justify-between pt-6 border-t border-[#2a2a4a]">
