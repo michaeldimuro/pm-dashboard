@@ -73,24 +73,52 @@ CREATE INDEX idx_agent_metrics_date ON agent_metrics(agent_id, metric_date DESC)
 -- 3. Create Users for Atlas and Forge (so they can be task assignees)
 -- =============================================================================
 
--- Atlas agent user
+-- Atlas auth user (required before public.users due to FK)
+INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, role, aud, created_at, updated_at)
+VALUES (
+  'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
+  '00000000-0000-0000-0000-000000000000',
+  'atlas@openclaw.local',
+  crypt('agent-atlas-nologin', gen_salt('bf')),
+  NOW(),
+  'authenticated',
+  'authenticated',
+  NOW(),
+  NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+-- Forge auth user
+INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, role, aud, created_at, updated_at)
+VALUES (
+  'f0e1d2c3-b4a5-4968-8776-5a4b3c2d1e0f',
+  '00000000-0000-0000-0000-000000000000',
+  'forge@openclaw.local',
+  crypt('agent-forge-nologin', gen_salt('bf')),
+  NOW(),
+  'authenticated',
+  'authenticated',
+  NOW(),
+  NOW()
+) ON CONFLICT (id) DO NOTHING;
+
+-- Atlas public user
 INSERT INTO users (id, email, full_name, businesses, created_at, updated_at)
 VALUES (
   'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
   'atlas@openclaw.local',
   'Atlas',
-  ARRAY['capture_health', 'inspectable', 'synergy']::text[],
+  ARRAY['capture_health', 'inspectable', 'synergy']::business_type[],
   NOW(),
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
--- Forge agent user
+-- Forge public user
 INSERT INTO users (id, email, full_name, businesses, created_at, updated_at)
 VALUES (
   'f0e1d2c3-b4a5-4968-8776-5a4b3c2d1e0f',
   'forge@openclaw.local',
   'Forge',
-  ARRAY['capture_health', 'inspectable', 'synergy']::text[],
+  ARRAY['capture_health', 'inspectable', 'synergy']::business_type[],
   NOW(),
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
