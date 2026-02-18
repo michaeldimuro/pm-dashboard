@@ -9,16 +9,33 @@ import type {
   OperationsRoomState,
   Agent,
   SubAgent,
-  Task,
   TaskFlow,
   OperationEvent,
-  TaskStatus,
+  AgentProfile,
+  AgentMetric,
+  AggregatedMetrics,
 } from '../types/operations';
+
+/**
+ * Extended store state with agent profiles and metrics
+ */
+interface OperationsStoreState extends OperationsRoomState {
+  // Agent profiles from agent_profiles table
+  agentProfiles: Record<string, AgentProfile>;
+  agentMetrics: Record<string, AgentMetric[]>;
+  aggregatedMetrics: AggregatedMetrics;
+
+  // Agent profile actions
+  setAgentProfiles: (profiles: AgentProfile[]) => void;
+  updateAgentProfile: (agentId: string, updates: Partial<AgentProfile>) => void;
+  setAgentMetrics: (agentId: string, metrics: AgentMetric[]) => void;
+  setAggregatedMetrics: (metrics: AggregatedMetrics) => void;
+}
 
 /**
  * Create the operations store
  */
-export const useOperationsStore = create<OperationsRoomState>()(
+export const useOperationsStore = create<OperationsStoreState>()(
   devtools(
     (set, get) => ({
       // Initial state
@@ -35,7 +52,16 @@ export const useOperationsStore = create<OperationsRoomState>()(
       isConnected: false,
       connectionError: null,
       unseenEventCount: 0,
-      
+
+      // Agent profiles state
+      agentProfiles: {},
+      agentMetrics: {},
+      aggregatedMetrics: {
+        today: { tasks: 0, sessions: 0, cost_cents: 0 },
+        week: { tasks: 0, sessions: 0, cost_cents: 0 },
+        month: { tasks: 0, sessions: 0, cost_cents: 0 },
+      },
+
       /**
        * Add event to live feed (keep last 50)
        */
@@ -48,7 +74,7 @@ export const useOperationsStore = create<OperationsRoomState>()(
             unseenEventCount: state.unseenEventCount + 1,
           };
         }, false, 'addEvent'),
-      
+
       /**
        * Update main agent status
        */
@@ -71,7 +97,7 @@ export const useOperationsStore = create<OperationsRoomState>()(
                 ...updates,
               },
         }), false, 'updateMainAgent'),
-      
+
       /**
        * Add a new sub-agent
        */
@@ -82,7 +108,7 @@ export const useOperationsStore = create<OperationsRoomState>()(
             [agent.id]: agent,
           },
         }), false, 'addSubAgent'),
-      
+
       /**
        * Update an existing sub-agent
        */
@@ -90,7 +116,7 @@ export const useOperationsStore = create<OperationsRoomState>()(
         set((state) => {
           const existing = state.subAgents[id];
           if (!existing) return state;
-          
+
           return {
             subAgents: {
               ...state.subAgents,
@@ -102,7 +128,7 @@ export const useOperationsStore = create<OperationsRoomState>()(
             },
           };
         }, false, 'updateSubAgent'),
-      
+
       /**
        * Remove a sub-agent
        */
@@ -111,13 +137,13 @@ export const useOperationsStore = create<OperationsRoomState>()(
           const { [id]: _, ...rest } = state.subAgents;
           return { subAgents: rest };
         }, false, 'removeSubAgent'),
-      
+
       /**
        * Update entire task flow (for kanban)
        */
       updateTaskFlow: (taskFlow: TaskFlow) =>
         set({ taskFlow }, false, 'updateTaskFlow'),
-      
+
       /**
        * Update connection status
        */
@@ -130,12 +156,54 @@ export const useOperationsStore = create<OperationsRoomState>()(
           false,
           status ? 'connectionEstablished' : `connectionFailed: ${error}`
         ),
-      
+
       /**
        * Clear all events from feed
        */
       clearEvents: () =>
         set({ liveFeed: [] }, false, 'clearEvents'),
+
+      /**
+       * Set agent profiles (bulk load from DB)
+       */
+      setAgentProfiles: (profiles: AgentProfile[]) =>
+        set(() => {
+          const map: Record<string, AgentProfile> = {};
+          profiles.forEach((p) => { map[p.agent_id] = p; });
+          return { agentProfiles: map };
+        }, false, 'setAgentProfiles'),
+
+      /**
+       * Update a single agent profile (realtime change)
+       */
+      updateAgentProfile: (agentId: string, updates: Partial<AgentProfile>) =>
+        set((state) => {
+          const existing = state.agentProfiles[agentId];
+          if (!existing) return state;
+          return {
+            agentProfiles: {
+              ...state.agentProfiles,
+              [agentId]: { ...existing, ...updates },
+            },
+          };
+        }, false, 'updateAgentProfile'),
+
+      /**
+       * Set metrics for a specific agent
+       */
+      setAgentMetrics: (agentId: string, metrics: AgentMetric[]) =>
+        set((state) => ({
+          agentMetrics: {
+            ...state.agentMetrics,
+            [agentId]: metrics,
+          },
+        }), false, 'setAgentMetrics'),
+
+      /**
+       * Set aggregated metrics
+       */
+      setAggregatedMetrics: (metrics: AggregatedMetrics) =>
+        set({ aggregatedMetrics: metrics }, false, 'setAggregatedMetrics'),
     }),
     {
       name: 'operations-store',
@@ -183,11 +251,14 @@ export const useCompletedSubAgents = () =>
     )
   );
 
-/**
- * Combined selector for OperationsRoom component
- * NOTE: This is now deprecated - use individual selectors in the component instead
- * to avoid React external store caching issues. See OperationsRoom.tsx for the pattern.
- */
+export const useAgentProfiles = () =>
+  useOperationsStore((state) => state.agentProfiles);
+
+export const useAgentProfile = (agentId: string) =>
+  useOperationsStore((state) => state.agentProfiles[agentId]);
+
+export const useAggregatedMetrics = () =>
+  useOperationsStore((state) => state.aggregatedMetrics);
 
 /**
  * Batch updates utility
@@ -199,21 +270,21 @@ export const batchUpdateOperations = (updates: {
   events?: OperationEvent[];
 }) => {
   const store = useOperationsStore.getState();
-  
+
   if (updates.mainAgent) {
     store.updateMainAgent(updates.mainAgent);
   }
-  
+
   if (updates.subAgents) {
     Object.entries(updates.subAgents).forEach(([id, update]) => {
       store.updateSubAgent(id, update);
     });
   }
-  
+
   if (updates.taskFlow) {
     store.updateTaskFlow(updates.taskFlow);
   }
-  
+
   if (updates.events) {
     updates.events.forEach((event) => store.addEvent(event));
   }
@@ -237,5 +308,12 @@ export const resetOperationsStore = () => {
     isConnected: false,
     connectionError: null,
     unseenEventCount: 0,
+    agentProfiles: {},
+    agentMetrics: {},
+    aggregatedMetrics: {
+      today: { tasks: 0, sessions: 0, cost_cents: 0 },
+      week: { tasks: 0, sessions: 0, cost_cents: 0 },
+      month: { tasks: 0, sessions: 0, cost_cents: 0 },
+    },
   });
 };

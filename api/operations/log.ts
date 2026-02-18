@@ -124,6 +124,19 @@ export default async function handler(
         return;
       }
 
+      // Update agent_profiles status on session events
+      if (eventReq.event_type === 'agent.session.started') {
+        await supabase
+          .from('agent_profiles')
+          .update({ status: 'active', last_active_at: new Date().toISOString() })
+          .eq('agent_id', eventReq.agent_id);
+      } else if (eventReq.event_type === 'agent.session.terminated') {
+        await supabase
+          .from('agent_profiles')
+          .update({ status: 'dormant', last_active_at: new Date().toISOString() })
+          .eq('agent_id', eventReq.agent_id);
+      }
+
       console.log(`[Log API] Event logged: ${eventReq.event_type} (${eventReq.event_id})`);
       res.status(200).json({ success: true, event_id: eventReq.event_id });
 

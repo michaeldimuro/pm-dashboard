@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useOperationsStore } from '@/stores/operationsStore';
-import type { OperationEvent, SubAgent, Agent } from '@/types/operations';
+import type { OperationEvent, SubAgent, Agent, AgentProfile } from '@/types/operations';
 
 interface AgentSessionRow {
   id: string;
@@ -180,6 +180,20 @@ async function initializeOperationsData(): Promise<void> {
       console.log('[SupabaseRealtime] No active sessions found in database');
     }
 
+    // Fetch agent profiles
+    console.log('[SupabaseRealtime] Fetching agent profiles...');
+    const { data: profiles, error: profilesError } = await supabase
+      .from('agent_profiles')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (profilesError) {
+      console.error('[SupabaseRealtime] Error fetching agent profiles:', profilesError);
+    } else if (profiles && profiles.length > 0) {
+      console.log(`[SupabaseRealtime] Loaded ${profiles.length} agent profiles`);
+      store.setAgentProfiles(profiles as AgentProfile[]);
+    }
+
     // Fetch recent events
     console.log('[SupabaseRealtime] Fetching events...');
     const { data: events, error: eventsError } = await supabase
@@ -243,6 +257,15 @@ function setupRealtimeSubscriptions() {
         table: 'operations_events',
       },
       (payload) => handleEventChange(payload as any)
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'agent_profiles',
+      },
+      (payload) => handleAgentProfileChange(payload as any)
     )
     .subscribe((status, err) => {
       console.log('[SupabaseRealtime] Subscription status:', status, err);
@@ -313,6 +336,22 @@ function handleEventChange(payload: {
   if (payload.eventType === 'INSERT' && payload.new) {
     const store = useOperationsStore.getState();
     store.addEvent(rowToEvent(payload.new));
+  }
+}
+
+/**
+ * Handle agent_profiles changes
+ */
+function handleAgentProfileChange(payload: {
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+  new: AgentProfile & { id: string };
+  old: (AgentProfile & { id: string }) | null;
+}) {
+  console.log('[SupabaseRealtime] Agent profile change:', payload.eventType, payload.new?.agent_id);
+
+  if (payload.new && (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE')) {
+    const store = useOperationsStore.getState();
+    store.updateAgentProfile(payload.new.agent_id, payload.new);
   }
 }
 

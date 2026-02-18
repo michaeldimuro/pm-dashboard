@@ -231,6 +231,51 @@ export interface ProgressBarProps {
 }
 
 /**
+ * Agent Profile — from agent_profiles table
+ */
+export interface AgentProfile {
+  id: string;
+  agent_id: string;
+  display_name: string;
+  role: string;
+  description: string;
+  avatar_color: string;
+  avatar_icon: string;
+  default_model: string;
+  status: 'active' | 'dormant' | 'disabled';
+  capabilities: string[];
+  assignee_user_id: string | null;
+  total_tasks_completed: number;
+  total_tokens_used: number;
+  total_cost_cents: number;
+  last_active_at: string | null;
+}
+
+/**
+ * Agent Metric — from agent_metrics table (time-series)
+ */
+export interface AgentMetric {
+  agent_id: string;
+  metric_date: string;
+  tasks_completed: number;
+  tasks_created: number;
+  tokens_used: number;
+  cost_cents: number;
+  sessions_count: number;
+  avg_session_duration_ms: number;
+  errors_count: number;
+}
+
+/**
+ * Aggregated metrics for display
+ */
+export interface AggregatedMetrics {
+  today: { tasks: number; sessions: number; cost_cents: number };
+  week: { tasks: number; sessions: number; cost_cents: number };
+  month: { tasks: number; sessions: number; cost_cents: number };
+}
+
+/**
  * Utility type for formatting
  */
 export interface FormattedEvent {

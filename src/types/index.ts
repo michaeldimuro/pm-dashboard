@@ -202,11 +202,13 @@ export interface TaskFilters {
   search?: string;
 }
 
-// Assignee options (Michael and Xandus only)
+// Assignee options — all team members (humans + agents)
 // IDs are actual user UUIDs from the database
 export const ASSIGNEES = [
   { id: 'ce844db6-780d-4bb2-8859-6e860b0c26c1', name: 'Michael' },
   { id: 'e703aeed-3e46-413f-bc27-2fce063176bc', name: 'Xandus' },
+  { id: 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d', name: 'Atlas' },
+  { id: 'f0e1d2c3-b4a5-4968-8776-5a4b3c2d1e0f', name: 'Forge' },
 ] as const;
 
 export type AssigneeId = typeof ASSIGNEES[number]['id'];

@@ -1,16 +1,21 @@
 /**
- * Operations Page - Operations Room Visualization
- * Main page for monitoring real-time agent activity
+ * Operations Page — Router wrapper for operations routes
+ * /operations       → OperationsOverview
+ * /operations/:id   → AgentDetailPage
  */
 
 import React from 'react';
-import { OperationsRoom } from '@/components/OperationsRoom';
+import { Routes, Route } from 'react-router-dom';
+import { OperationsOverview } from './OperationsOverview';
+import { AgentDetailPage } from './AgentDetailPage';
 
-/**
- * OperationsPage - Main page component
- */
 export const OperationsPage: React.FC = () => {
-  return <OperationsRoom />;
+  return (
+    <Routes>
+      <Route index element={<OperationsOverview />} />
+      <Route path=":agentId" element={<AgentDetailPage />} />
+    </Routes>
+  );
 };
 
 export default OperationsPage;

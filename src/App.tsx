@@ -103,8 +103,8 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Operations Room - Public route (no auth required for visualization) */}
-        <Route path="/operations" element={<OperationsPage />} />
+        {/* Operations Center - Public route (no auth required for visualization) */}
+        <Route path="/operations/*" element={<OperationsPage />} />
         
         {/* All other routes require auth */}
         <Route
