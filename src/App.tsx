@@ -25,26 +25,11 @@ function LoadingScreen() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { session, loading, user } = useAuth();
+  const { session, loading } = useAuth();
 
-  console.log('[ProtectedRoute] State:', { 
-    loading, 
-    hasSession: !!session, 
-    hasUser: !!user,
-    userName: user?.full_name 
-  });
+  if (loading) return <LoadingScreen />;
+  if (!session) return <Navigate to="/login" replace />;
 
-  if (loading) {
-    console.log('[ProtectedRoute] Still loading, showing spinner...');
-    return <LoadingScreen />;
-  }
-
-  if (!session) {
-    console.log('[ProtectedRoute] No session, redirecting to login');
-    return <Navigate to="/login" replace />;
-  }
-
-  console.log('[ProtectedRoute] Session valid, rendering protected content');
   return <>{children}</>;
 }
 

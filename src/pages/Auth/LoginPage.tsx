@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Eye, EyeOff, Loader2, Rocket, AlertCircle } from 'lucide-react';
 
@@ -10,27 +9,27 @@ export function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email.trim() || !password.trim()) {
       setError('Please enter both email and password.');
       return;
     }
-    
+
     setError('');
     setLoading(true);
 
     const result = await signIn(email.trim(), password);
-    
-    if (result.success) {
-      navigate('/', { replace: true });
-    } else {
+
+    if (!result.success) {
       setError(result.error || 'Invalid credentials');
       setLoading(false);
     }
+    // On success: keep spinner showing. The onAuthStateChange listener
+    // sets the session in AuthContext, which causes PublicRoute to detect
+    // the active session and redirect to "/". No manual navigation needed.
   };
 
   return (
@@ -47,7 +46,7 @@ export function LoginPage() {
 
       {/* Gradient orb */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl" />
-      
+
       <div className="relative glass rounded-2xl w-full max-w-md p-8">
         <div className="text-center mb-8">
           <div className="w-20 h-20 mx-auto mb-4 relative">
