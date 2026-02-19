@@ -47,60 +47,44 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function AuthenticatedRoutes() {
-  return (
-    <Routes>
-      <Route
-        path="/login"
-        element={
-          <PublicRoute>
-            <LoginPage />
-          </PublicRoute>
-        }
-      />
-
-      <Route
-        element={
-          <ProtectedRoute>
-            <BusinessProvider>
-              <MainLayout />
-            </BusinessProvider>
-          </ProtectedRoute>
-        }
-      >
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/kanban" element={<KanbanBoard />} />
-        <Route path="/kanban/done" element={<DoneTasksPage />} />
-        <Route path="/calendar" element={<CalendarPage />} />
-        <Route path="/notes" element={<NotesPage />} />
-        <Route path="/leads" element={<LeadsPage />} />
-        <Route path="/webhooks" element={<WebhooksPage />} />
-        <Route path="/subcontractors" element={<SubcontractorsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-      </Route>
-
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  );
-}
-
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Operations Center - Public route (no auth required for visualization) */}
-        <Route path="/operations/*" element={<OperationsPage />} />
-        
-        {/* All other routes require auth */}
-        <Route
-          path="*"
-          element={
-            <AuthProvider>
-              <AuthenticatedRoutes />
-            </AuthProvider>
-          }
-        />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <LoginPage />
+              </PublicRoute>
+            }
+          />
+
+          <Route
+            element={
+              <ProtectedRoute>
+                <BusinessProvider>
+                  <MainLayout />
+                </BusinessProvider>
+              </ProtectedRoute>
+            }
+          >
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/kanban" element={<KanbanBoard />} />
+            <Route path="/kanban/done" element={<DoneTasksPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/notes" element={<NotesPage />} />
+            <Route path="/leads" element={<LeadsPage />} />
+            <Route path="/webhooks" element={<WebhooksPage />} />
+            <Route path="/subcontractors" element={<SubcontractorsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/operations/*" element={<OperationsPage />} />
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
