@@ -37,7 +37,7 @@ interface MockEvent {
 function createMockAgent(overrides?: Partial<MockAgent>): MockAgent {
   const sessionId = uuidv4();
   return {
-    id: `agent:main:${overrides?.id || 'test'}`,
+    id: overrides?.id || 'test',
     name: 'Test Agent',
     status: 'active',
     sessionId,
@@ -68,10 +68,10 @@ describe('Operations Room Integration', () => {
     it('should create an agent session', () => {
       const agent = createMockAgent({
         name: 'Xandus',
-        id: 'main:main',
+        id: 'main',
       });
 
-      expect(agent.id).toBe('agent:main:main:main');
+      expect(agent.id).toBe('main');
       expect(agent.sessionId).toBeDefined();
       expect(agent.sessionId).toMatch(/^[0-9a-f-]{36}$/);
     });
@@ -103,15 +103,16 @@ describe('Operations Room Integration', () => {
 
   describe('Sub-Agent Spawning', () => {
     it('should spawn a sub-agent', () => {
-      const parentAgent = createMockAgent({ name: 'Xandus', id: 'main:main' });
+      const parentAgent = createMockAgent({ name: 'Xandus', id: 'main' });
+      const subAgentId = `main:subagent:${uuidv4()}`;
       const subAgent = createMockAgent({
         name: 'OpRoom Architect',
-        id: `main:subagent:${uuidv4()}`,
+        id: subAgentId,
         parentSessionId: parentAgent.sessionId,
       });
 
       expect(subAgent.parentSessionId).toBe(parentAgent.sessionId);
-      expect(subAgent.id).toMatch(/agent:main:main:subagent:/);
+      expect(subAgent.id).toMatch(/^main:subagent:/);
     });
 
     it('should log subagent spawned event', () => {
