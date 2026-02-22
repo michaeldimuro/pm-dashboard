@@ -12,6 +12,7 @@ import { WebhooksPage } from './pages/Webhooks';
 import { SettingsPage } from './pages/Settings';
 import { SubcontractorsPage } from './pages/Subcontractors';
 import { OperationsPage } from './pages/Operations/OperationsPage';
+import { AppReviewPage } from './pages/AppReview/AppReviewPage';
 
 function LoadingScreen() {
   return (
@@ -80,6 +81,7 @@ function App() {
             <Route path="/subcontractors" element={<SubcontractorsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/operations/*" element={<OperationsPage />} />
+            <Route path="/app-review/*" element={<AppReviewPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />

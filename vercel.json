@@ -15,5 +15,8 @@
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
       ]
     }
+  ],
+  "crons": [
+    { "path": "/api/app-review/poll", "schedule": "*/5 * * * *" }
   ]
 }

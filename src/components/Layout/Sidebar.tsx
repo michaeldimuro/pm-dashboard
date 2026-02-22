@@ -14,6 +14,7 @@ import {
   LogOut,
   Rocket,
   MonitorPlay,
+  Smartphone,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -31,6 +32,7 @@ const navItems = [
   { icon: HardHat, label: 'Subcontractors', path: '/subcontractors' },
   { icon: Webhook, label: 'Webhooks', path: '/webhooks' },
   { icon: MonitorPlay, label: 'Operations', path: '/operations' },
+  { icon: Smartphone, label: 'App Review', path: '/app-review' },
   { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
