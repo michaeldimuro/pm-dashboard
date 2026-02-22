@@ -211,6 +211,7 @@ export const ASSIGNEES = [
   { id: 'f0e1d2c3-b4a5-4968-8776-5a4b3c2d1e0f', name: 'Forge' },
   { id: '5e4d3c2b-a1b0-4c9d-8e7f-6a5b4c3d2e1f', name: 'Sentinel' },
   { id: '1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5e', name: 'Prism' },
+  { id: 'b7c8d9e0-f1a2-4b3c-9d8e-7f6a5b4c3d2e', name: 'Jarvis' },
 ] as const;
 
 export type AssigneeId = typeof ASSIGNEES[number]['id'];
